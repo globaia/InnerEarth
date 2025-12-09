@@ -1028,23 +1028,23 @@
             antipodeMarkerMesh.visible = showHomeMarker;
             scene.add(antipodeMarkerMesh);
 
-            // Create ANTIPODE label (UI-sized text)
+            // Create ANTIPODE label (3x bigger)
             const labelCanvas = document.createElement('canvas');
-            labelCanvas.width = 256;
-            labelCanvas.height = 64;
+            labelCanvas.width = 512;
+            labelCanvas.height = 128;
             const labelCtx = labelCanvas.getContext('2d');
 
-            // Draw text - bigger, clear font matching UI
-            labelCtx.font = 'bold 32px Arial, sans-serif';
+            // Draw text - 3x bigger
+            labelCtx.font = 'bold 64px Arial, sans-serif';
             labelCtx.textAlign = 'center';
             labelCtx.textBaseline = 'middle';
             // Red outline/glow
             labelCtx.strokeStyle = '#880000';
-            labelCtx.lineWidth = 3;
-            labelCtx.strokeText('ANTIPODE', 128, 32);
+            labelCtx.lineWidth = 5;
+            labelCtx.strokeText('ANTIPODE', 256, 64);
             // Red fill
             labelCtx.fillStyle = '#ff3333';
-            labelCtx.fillText('ANTIPODE', 128, 32);
+            labelCtx.fillText('ANTIPODE', 256, 64);
 
             const labelTexture = new THREE.CanvasTexture(labelCanvas);
             const labelMat = new THREE.SpriteMaterial({
@@ -1055,11 +1055,11 @@
             });
 
             antipodeLabelSprite = new THREE.Sprite(labelMat);
-            antipodeLabelSprite.scale.set(0.08, 0.02, 1);  // Bigger, readable size
+            antipodeLabelSprite.scale.set(0.24, 0.06, 1);  // 3x bigger (was 0.08, 0.02)
 
             // Position label ABOVE the dot using sprite's center offset
             // The sprite center property moves where the sprite renders relative to its position
-            antipodeLabelSprite.center.set(0.5, -0.5);  // Shift sprite up (renders above its position point)
+            antipodeLabelSprite.center.set(0.5, -0.3);  // Shift sprite up (renders above its position point)
             antipodeLabelSprite.position.copy(pos).multiplyScalar(1.002);  // Same as marker
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
@@ -2052,48 +2052,80 @@
             }
         });
 
-        document.getElementById('locate').addEventListener('click', () => {
+        document.getElementById('locate').addEventListener('click', async () => {
             const btn = document.getElementById('locate');
             const originalText = btn.textContent;
+            const helpEl = document.getElementById('location-help');
+            helpEl.style.display = 'none';  // Hide any previous help
+
+            if (!navigator.geolocation) {
+                btn.textContent = 'Not supported';
+                setTimeout(() => { btn.textContent = originalText; }, 2000);
+                return;
+            }
+
+            // Check permission state first using Permissions API (if available)
+            let permissionState = 'prompt';  // Default to prompt
+            if (navigator.permissions && navigator.permissions.query) {
+                try {
+                    const result = await navigator.permissions.query({ name: 'geolocation' });
+                    permissionState = result.state;  // 'granted', 'denied', or 'prompt'
+                    console.log('Geolocation permission state:', permissionState);
+                } catch (e) {
+                    console.log('Permissions API not available for geolocation');
+                }
+            }
+
+            // If already denied, show help immediately
+            if (permissionState === 'denied') {
+                btn.textContent = 'Permission blocked';
+                helpEl.style.display = 'block';
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                document.getElementById('location-help-safari').style.display = isSafari ? 'block' : 'none';
+                document.getElementById('location-help-other').style.display = isSafari ? 'none' : 'block';
+                setTimeout(() => { btn.textContent = originalText; }, 3000);
+                return;
+            }
+
+            // Request location - this will prompt for permission if state is 'prompt'
             btn.textContent = 'Locating...';
             btn.disabled = true;
 
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    pos => {
-                        // Store as home location
-                        homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-                        setLocation(pos.coords.latitude, pos.coords.longitude, true);
-                        btn.textContent = originalText;
-                        btn.disabled = false;
-                    },
-                    err => {
-                        console.log('Location error:', err.code, err.message);
-                        btn.disabled = false;
-                        // Code 1 = permission denied, Code 2 = position unavailable, Code 3 = timeout
-                        if (err.code === 1) {
-                            btn.textContent = 'Permission denied';
-                            const helpEl = document.getElementById('location-help');
-                            helpEl.style.display = 'block';
-                            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-                            document.getElementById('location-help-safari').style.display = isSafari ? 'block' : 'none';
-                            document.getElementById('location-help-other').style.display = isSafari ? 'none' : 'block';
-                        } else if (err.code === 3) {
-                            btn.textContent = 'Timeout - try again';
-                        } else {
-                            btn.textContent = 'Location unavailable';
-                        }
-                        setTimeout(() => { btn.textContent = originalText; }, 3000);
-                    },
-                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
-                );
-            } else {
-                btn.textContent = 'Not supported';
-                setTimeout(() => {
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    // Success - store and navigate to location
+                    homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                    setLocation(pos.coords.latitude, pos.coords.longitude, true);
                     btn.textContent = originalText;
                     btn.disabled = false;
-                }, 2000);
-            }
+                    console.log('Location acquired:', pos.coords.latitude, pos.coords.longitude);
+                },
+                err => {
+                    console.log('Location error:', err.code, err.message);
+                    btn.disabled = false;
+
+                    if (err.code === 1) {
+                        // Permission denied
+                        btn.textContent = 'Permission denied';
+                        helpEl.style.display = 'block';
+                        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                        document.getElementById('location-help-safari').style.display = isSafari ? 'block' : 'none';
+                        document.getElementById('location-help-other').style.display = isSafari ? 'none' : 'block';
+                    } else if (err.code === 2) {
+                        // Position unavailable (GPS off, no signal, etc.)
+                        btn.textContent = 'Position unavailable';
+                    } else if (err.code === 3) {
+                        // Timeout
+                        btn.textContent = 'Timeout - try again';
+                    }
+                    setTimeout(() => { btn.textContent = originalText; }, 3000);
+                },
+                {
+                    enableHighAccuracy: false,  // Faster response, WiFi/IP based
+                    timeout: 10000,             // 10 second timeout
+                    maximumAge: 60000           // Accept cached position up to 1 minute old
+                }
+            );
         });
 
         document.getElementById('location-select').addEventListener('change', e => {
@@ -2979,7 +3011,7 @@
         createLabels();
         createHomeMarker();
         initGreatCircleGroup();
-        loadCharacter();  // Load 3D walking character
+        // loadCharacter();  // Disabled - FBX file too large (41MB) for GitHub Pages
         document.getElementById('greatcircle-toggle').checked = true;  // Default on
         loadDefaultSettings();  // Load saved default view if available
         updateCameraLook();
