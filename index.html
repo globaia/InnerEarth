@@ -451,6 +451,8 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
     <script>
     (function() {
         // === Configuration ===
@@ -2497,8 +2499,8 @@
         // Forward (looking direction) should move nadir OPPOSITE to where you look
         // (like a hamster ball - you walk toward what you see, so the ball rolls that way)
         function updateWalking() {
-            // Only walk at ground level
-            if (currentAltitudeKm > GROUND_LEVEL_KM) return;
+            // Only walk at ground level (unless in character mode where we always allow walking)
+            if (!characterMode && currentAltitudeKm > GROUND_LEVEL_KM) return;
             if (!keysPressed.forward && !keysPressed.backward && !keysPressed.left && !keysPressed.right) return;
 
             walkFrameCount++;
@@ -2582,6 +2584,125 @@
             }
 
             updateInfo();
+        }
+
+        // === Character System (3D Walking Character) ===
+        let character = null;
+        let characterMixer = null;
+        let characterAction = null;
+        let characterLoaded = false;
+        let characterMode = false;  // When true, camera follows character in 3rd person
+        const CHARACTER_HEIGHT_KM = 50;  // 50km tall giant for testing
+        const CHARACTER_SCALE = (CHARACTER_HEIGHT_KM / 12742) * SPHERE_RADIUS * 2;  // Convert km to scene units
+
+        // Camera offset for 3rd person view (behind and above character)
+        const CAMERA_BEHIND_OFFSET = CHARACTER_SCALE * 2;  // 2x character height behind
+        const CAMERA_ABOVE_OFFSET = CHARACTER_SCALE * 0.8;  // 0.8x character height above
+
+        function loadCharacter() {
+            const loader = new THREE.FBXLoader();
+            loader.load('assets/models/Walking.fbx',
+                (fbx) => {
+                    character = fbx;
+
+                    // Scale to 50km tall
+                    character.scale.setScalar(CHARACTER_SCALE / 100);  // FBX models are often ~100 units tall
+
+                    // Setup animation
+                    characterMixer = new THREE.AnimationMixer(character);
+                    if (fbx.animations && fbx.animations.length > 0) {
+                        characterAction = characterMixer.clipAction(fbx.animations[0]);
+                        characterAction.play();
+                        characterAction.paused = true;  // Start paused, play when walking
+                    }
+
+                    // Position at nadir initially
+                    updateCharacterPosition();
+
+                    scene.add(character);
+                    characterLoaded = true;
+                    characterMode = true;  // Enable character mode by default
+
+                    console.log('Character loaded! Height:', CHARACTER_HEIGHT_KM, 'km');
+                },
+                (progress) => {
+                    console.log('Loading character:', Math.round(progress.loaded / progress.total * 100) + '%');
+                },
+                (error) => {
+                    console.error('Error loading character:', error);
+                }
+            );
+        }
+
+        function updateCharacterPosition() {
+            if (!character) return;
+
+            // Position character at nadir, standing on the sphere surface
+            const pos = geoToSphere(nadir.lat, nadir.lon);
+
+            // Character feet at surface (multiply to put on inner surface)
+            character.position.copy(pos).multiplyScalar(0.999);
+
+            // Orient character to stand upright (feet toward center, head outward)
+            // The "up" direction for the character should point toward center (negative of position)
+            const up = pos.clone().normalize().negate();  // Point toward center
+            const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(cameraQuat);  // Face where camera looks
+
+            // Project forward onto the tangent plane at this point
+            const tangentForward = forward.clone().sub(up.clone().multiplyScalar(forward.dot(up))).normalize();
+
+            // Create rotation matrix
+            const matrix = new THREE.Matrix4();
+            const right = new THREE.Vector3().crossVectors(tangentForward, up).normalize();
+            const correctedForward = new THREE.Vector3().crossVectors(up, right).normalize();
+
+            matrix.makeBasis(right, up, correctedForward);
+            character.quaternion.setFromRotationMatrix(matrix);
+
+            // Rotate 180 degrees around up axis so character faces forward
+            const flipQuat = new THREE.Quaternion().setFromAxisAngle(up, Math.PI);
+            character.quaternion.multiply(flipQuat);
+        }
+
+        function updateCharacterAnimation(delta, isMoving) {
+            if (!characterMixer) return;
+
+            if (isMoving) {
+                if (characterAction && characterAction.paused) {
+                    characterAction.paused = false;
+                }
+                characterMixer.update(delta);
+            } else {
+                if (characterAction && !characterAction.paused) {
+                    characterAction.paused = true;
+                }
+            }
+        }
+
+        function updateCameraForCharacter() {
+            if (!character || !characterMode) return;
+
+            // Get character position and orientation
+            const charPos = character.position.clone();
+            const charUp = charPos.clone().normalize().negate();  // Toward center
+
+            // Get forward direction (where character is facing)
+            const charForward = new THREE.Vector3(0, 0, 1).applyQuaternion(character.quaternion);
+
+            // Calculate camera position: behind and above character
+            // "Behind" means opposite of forward direction
+            // "Above" means in the up direction (away from center)
+            const cameraOffset = charForward.clone().multiplyScalar(-CAMERA_BEHIND_OFFSET)
+                .add(charUp.clone().negate().multiplyScalar(CAMERA_ABOVE_OFFSET));
+
+            const targetCameraPos = charPos.clone().add(cameraOffset);
+
+            // Smoothly interpolate camera position
+            camera.position.lerp(targetCameraPos, 0.1);
+
+            // Camera looks at character (slightly above feet)
+            const lookTarget = charPos.clone().add(charUp.clone().negate().multiplyScalar(CHARACTER_SCALE * 0.3));
+            camera.lookAt(lookTarget);
         }
 
         // === Line Animation System (triggered on layer toggle) ===
@@ -2799,18 +2920,40 @@
 
         // === Animation Loop ===
         let lastDayNightUpdate = 0;
+        let lastFrameTime = performance.now();
+        const clock = new THREE.Clock();
+
         function animate() {
             requestAnimationFrame(animate);
-            updateInitialRise();  // Camera rise animation on first load
-            updateCameraInertia();  // Smooth camera momentum
+
+            const delta = clock.getDelta();
+            const now = performance.now();
+
+            // Check if character is moving (any movement key pressed)
+            const isCharacterMoving = keysPressed.forward || keysPressed.backward || keysPressed.left || keysPressed.right;
+
+            // Update character animation
+            updateCharacterAnimation(delta, isCharacterMoving);
+
+            // Standard updates (only when not in character mode)
+            if (!characterMode) {
+                updateInitialRise();  // Camera rise animation on first load
+                updateCameraInertia();  // Smooth camera momentum
+            }
+
             updateAnimation();
             updateWalking();
+
+            // Update character position and camera in character mode
+            if (characterMode && character) {
+                updateCharacterPosition();
+                updateCameraForCharacter();
+            }
 
             // Layer animation system (triggered on toggle)
             updateLayerAnimations();
 
             // Update day/night sphere every 30 seconds when enabled (for real-time sun movement)
-            const now = performance.now();
             if (showDayNight && now - lastDayNightUpdate > 30000) {
                 createDayNightSphere();
                 lastDayNightUpdate = now;
@@ -2827,6 +2970,7 @@
         createLabels();
         createHomeMarker();
         initGreatCircleGroup();
+        loadCharacter();  // Load 3D walking character
         document.getElementById('greatcircle-toggle').checked = true;  // Default on
         loadDefaultSettings();  // Load saved default view if available
         updateCameraLook();
