@@ -1986,15 +1986,38 @@
         });
 
         document.getElementById('locate').addEventListener('click', () => {
+            const btn = document.getElementById('locate');
+            const originalText = btn.textContent;
+            btn.textContent = 'Locating...';
+            btn.disabled = true;
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     pos => {
                         // Store as home location
                         homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                         setLocation(pos.coords.latitude, pos.coords.longitude, true);
+                        btn.textContent = originalText;
+                        btn.disabled = false;
                     },
-                    err => console.log('Location error:', err.message)
+                    err => {
+                        console.log('Location error:', err.message);
+                        btn.textContent = 'Location denied';
+                        btn.style.color = '#f44';
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.style.color = '';
+                            btn.disabled = false;
+                        }, 2000);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
                 );
+            } else {
+                btn.textContent = 'Not supported';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 2000);
             }
         });
 
@@ -2517,10 +2540,11 @@
                     homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
                     setLocation(pos.coords.latitude, pos.coords.longitude, true);
                 },
-                () => {
+                (err) => {
                     // Silent fallback - stay at default location (Paris)
-                    console.log('Geolocation unavailable, using default location');
-                }
+                    console.log('Geolocation unavailable:', err.message, '- using default location');
+                },
+                { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
             );
         }
 
