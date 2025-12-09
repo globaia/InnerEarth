@@ -337,8 +337,14 @@
         <div style="margin-top:6px;">
             <button class="btn-secondary" id="locate">My Location</button>
             <div id="location-help" style="display:none;margin-top:6px;padding:8px;background:#331a00;border-radius:4px;font-size:10px;color:#ffaa00;">
-                <strong>Location blocked</strong><br>
-                To enable: Click the 🔒 icon in your browser's address bar → Allow location access → Reload page
+                <strong>Location unavailable</strong><br>
+                <span id="location-help-safari" style="display:none;">
+                    Safari: Settings → Privacy → Location Services → Safari Websites → Allow<br>
+                    Then reload this page.
+                </span>
+                <span id="location-help-other">
+                    Check browser settings → Site permissions → Location → Allow for this site
+                </span>
                 <br><button class="btn-secondary" style="margin-top:6px;font-size:9px;" onclick="document.getElementById('location-help').style.display='none'">Dismiss</button>
             </div>
         </div>
@@ -376,6 +382,11 @@
         <div class="checkbox-row">
             <input type="checkbox" id="home-marker-toggle" checked>
             <label for="home-marker-toggle" style="margin:0;color:#aaa;">Home marker</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="antipode-label-toggle" checked>
+            <label for="antipode-label-toggle" style="margin:0;color:#aaa;">Antipode label</label>
         </div>
 
         <div class="checkbox-row">
@@ -747,7 +758,8 @@
         let showLabels = false;
 
         // === Content Groups ===
-        let sphereGroup, geoGridGroup, subjectiveGridGroup, citiesGroup, homeMarkerMesh, antipodeMarkerMesh;
+        let sphereGroup, geoGridGroup, subjectiveGridGroup, citiesGroup, homeMarkerMesh, antipodeMarkerMesh, antipodeLabelSprite;
+        let showAntipodeLabel = true;
         let labelsGroup = null;
         let satelliteSphere = null, satelliteVisible = false, satelliteTexture = null;
         let dayNightSphere = null;
@@ -977,6 +989,11 @@
                 antipodeMarkerMesh.material?.map?.dispose();
                 antipodeMarkerMesh.material?.dispose();
             }
+            if (antipodeLabelSprite) {
+                scene.remove(antipodeLabelSprite);
+                antipodeLabelSprite.material?.map?.dispose();
+                antipodeLabelSprite.material?.dispose();
+            }
 
             // Calculate antipode coordinates
             const antipodeLat = -nadir.lat;
@@ -1013,6 +1030,42 @@
 
             antipodeMarkerMesh.visible = showHomeMarker;
             scene.add(antipodeMarkerMesh);
+
+            // Create ANTIPODE label
+            const labelCanvas = document.createElement('canvas');
+            labelCanvas.width = 256;
+            labelCanvas.height = 64;
+            const labelCtx = labelCanvas.getContext('2d');
+
+            // Draw text
+            labelCtx.font = 'bold 36px Arial, sans-serif';
+            labelCtx.textAlign = 'center';
+            labelCtx.textBaseline = 'middle';
+            // Red outline/glow
+            labelCtx.strokeStyle = '#880000';
+            labelCtx.lineWidth = 4;
+            labelCtx.strokeText('ANTIPODE', 128, 32);
+            // Red fill
+            labelCtx.fillStyle = '#ff3333';
+            labelCtx.fillText('ANTIPODE', 128, 32);
+
+            const labelTexture = new THREE.CanvasTexture(labelCanvas);
+            const labelMat = new THREE.SpriteMaterial({
+                map: labelTexture,
+                transparent: true,
+                sizeAttenuation: false,
+                depthWrite: false
+            });
+
+            antipodeLabelSprite = new THREE.Sprite(labelMat);
+            antipodeLabelSprite.scale.set(0.08, 0.02, 1);  // Wide for text
+
+            // Position slightly above the marker (toward center from antipode position)
+            const labelPos = pos.clone().multiplyScalar(0.96);  // Closer to center = appears above marker
+            antipodeLabelSprite.position.copy(labelPos);
+
+            antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
+            scene.add(antipodeLabelSprite);
         }
 
         // === Subjective Grid (You = South Pole, Antipode = North Pole) ===
@@ -2024,8 +2077,13 @@
                         btn.textContent = originalText;
                         btn.disabled = false;
                         // Show help message for permission denied (code 1) or unavailable (code 2)
-                        if (err.code === 1 || err.code === 2) {
-                            document.getElementById('location-help').style.display = 'block';
+                        if (err.code === 1 || err.code === 2 || err.code === 3) {
+                            const helpEl = document.getElementById('location-help');
+                            helpEl.style.display = 'block';
+                            // Detect Safari
+                            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                            document.getElementById('location-help-safari').style.display = isSafari ? 'block' : 'none';
+                            document.getElementById('location-help-other').style.display = isSafari ? 'none' : 'block';
                         }
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
@@ -2070,6 +2128,12 @@
             showHomeMarker = e.target.checked;
             if (homeMarkerMesh) homeMarkerMesh.visible = showHomeMarker;
             if (antipodeMarkerMesh) antipodeMarkerMesh.visible = showHomeMarker;
+            if (antipodeLabelSprite) antipodeLabelSprite.visible = showHomeMarker && showAntipodeLabel;
+        });
+
+        document.getElementById('antipode-label-toggle').addEventListener('change', e => {
+            showAntipodeLabel = e.target.checked;
+            if (antipodeLabelSprite) antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
         });
 
         document.getElementById('coastline-resolution').addEventListener('change', e => {
@@ -2513,6 +2577,10 @@
                 const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
                 const pos = geoToSphere(antipodeLat, antipodeLon);
                 antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
+                // Also update label position
+                if (antipodeLabelSprite) {
+                    antipodeLabelSprite.position.copy(pos).multiplyScalar(0.96);
+                }
             }
 
             updateInfo();
