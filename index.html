@@ -451,8 +451,8 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/libs/fflate.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <script>
     (function() {
         // === Configuration ===
@@ -2072,19 +2072,23 @@
                     },
                     err => {
                         console.log('Location error:', err.code, err.message);
-                        btn.textContent = originalText;
                         btn.disabled = false;
-                        // Show help message for permission denied (code 1) or unavailable (code 2)
-                        if (err.code === 1 || err.code === 2 || err.code === 3) {
+                        // Code 1 = permission denied, Code 2 = position unavailable, Code 3 = timeout
+                        if (err.code === 1) {
+                            btn.textContent = 'Permission denied';
                             const helpEl = document.getElementById('location-help');
                             helpEl.style.display = 'block';
-                            // Detect Safari
                             const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
                             document.getElementById('location-help-safari').style.display = isSafari ? 'block' : 'none';
                             document.getElementById('location-help-other').style.display = isSafari ? 'none' : 'block';
+                        } else if (err.code === 3) {
+                            btn.textContent = 'Timeout - try again';
+                        } else {
+                            btn.textContent = 'Location unavailable';
                         }
+                        setTimeout(() => { btn.textContent = originalText; }, 3000);
                     },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+                    { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 }
                 );
             } else {
                 btn.textContent = 'Not supported';
@@ -2438,10 +2442,7 @@
         function stopWalking() {
             if (isWalking) {
                 isWalking = false;
-                // Only rebuild if we walked a significant amount
-                if (walkFrameCount > 5) {
-                    rebuildAll();
-                }
+                // Don't rebuild on stop - it causes jumping. Rebuild is done periodically or on location change
             }
         }
 
@@ -2469,6 +2470,16 @@
                     keysPressed.right = true;
                     startWalking();
                     e.preventDefault();
+                    break;
+                case 'c':
+                    // Toggle character mode
+                    if (characterLoaded) {
+                        characterMode = !characterMode;
+                        console.log('Character mode:', characterMode ? 'ON' : 'OFF');
+                        if (characterMode) {
+                            character.visible = true;
+                        }
+                    }
                     break;
             }
         });
@@ -2621,9 +2632,10 @@
 
                     scene.add(character);
                     characterLoaded = true;
-                    characterMode = true;  // Enable character mode by default
+                    // Don't enable character mode automatically - user can press 'C' to toggle
+                    // characterMode = true;
 
-                    console.log('Character loaded! Height:', CHARACTER_HEIGHT_KM, 'km');
+                    console.log('Character loaded! Press C to toggle character mode. Height:', CHARACTER_HEIGHT_KM, 'km');
                 },
                 (progress) => {
                     console.log('Loading character:', Math.round(progress.loaded / progress.total * 100) + '%');
