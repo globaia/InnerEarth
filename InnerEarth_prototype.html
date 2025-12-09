@@ -336,6 +336,11 @@
         </select>
         <div style="margin-top:6px;">
             <button class="btn-secondary" id="locate">My Location</button>
+            <div id="location-help" style="display:none;margin-top:6px;padding:8px;background:#331a00;border-radius:4px;font-size:10px;color:#ffaa00;">
+                <strong>Location blocked</strong><br>
+                To enable: Click the 🔒 icon in your browser's address bar → Allow location access → Reload page
+                <br><button class="btn-secondary" style="margin-top:6px;font-size:9px;" onclick="document.getElementById('location-help').style.display='none'">Dismiss</button>
+            </div>
         </div>
 
         <h4>Altitude</h4>
@@ -1268,44 +1273,39 @@
                 // Store initial camera quaternion
                 const startQuat = cameraQuat.clone();
 
-                // Animation duration proportional to distance: 5s (nearby) to 10s (antipode ~20000km)
-                const MAX_DISTANCE_KM = 20015; // Half Earth circumference (antipode)
-                const MIN_DURATION = 5000;
-                const MAX_DURATION = 10000;
-                const distanceRatio = Math.min(1, distKm / MAX_DISTANCE_KM);
-                const duration = MIN_DURATION + distanceRatio * (MAX_DURATION - MIN_DURATION);
+                // Fixed 10 second animation duration
+                const duration = 10000;
                 const startTime = performance.now();
 
                 function animateLine() {
                     const elapsed = performance.now() - startTime;
                     const progress = Math.min(1, elapsed / duration);
-                    // Ease-out: slow down at the end
-                    const easedProgress = 1 - Math.pow(1 - progress, 3);  // ease-out cubic
+                    // Smooth ease-in-out for consistent feel
+                    const easedProgress = progress < 0.5
+                        ? 2 * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
 
                     // Animate the draw range based on point count
                     const pointsToShow = Math.floor(easedProgress * pointCount);
                     line.geometry.setDrawRange(0, pointsToShow);
 
-                    // Pulsing opacity (50% to 100%)
-                    const pulse = 0.75 + 0.25 * Math.sin(elapsed / 200);
+                    // Pulsing opacity (75% to 100%)
+                    const pulse = 0.85 + 0.15 * Math.sin(elapsed / 150);
                     line.material.opacity = pulse;
 
-                    // Camera follows the tip of the line (using same eased progress)
+                    // Camera follows the tip of the line exactly
                     const currentPos = interpolateGreatCircle(nadir.lat, nadir.lon, destCity.lat, destCity.lon, easedProgress);
                     const targetPoint = geoToSphere(currentPos.lat, currentPos.lon);
 
-                    // Compute quaternion to look at target
+                    // Directly look at the current line tip position
                     const tempCamera = new THREE.Object3D();
                     tempCamera.position.copy(camera.position);
                     tempCamera.lookAt(targetPoint);
                     const targetQuat = new THREE.Quaternion();
                     targetQuat.setFromEuler(tempCamera.rotation);
 
-                    // Slerp between start and target (ease in-out for camera)
-                    const cameraEase = progress < 0.5
-                        ? 2 * progress * progress
-                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-                    cameraQuat.slerpQuaternions(startQuat, targetQuat, cameraEase);
+                    // Smooth camera rotation - lerp toward target each frame
+                    cameraQuat.slerp(targetQuat, 0.08);
                     updateCameraLook();
 
                     if (progress < 1) {
@@ -2001,14 +2001,13 @@
                         btn.disabled = false;
                     },
                     err => {
-                        console.log('Location error:', err.message);
-                        btn.textContent = 'Location denied';
-                        btn.style.color = '#f44';
-                        setTimeout(() => {
-                            btn.textContent = originalText;
-                            btn.style.color = '';
-                            btn.disabled = false;
-                        }, 2000);
+                        console.log('Location error:', err.code, err.message);
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                        // Show help message for permission denied (code 1) or unavailable (code 2)
+                        if (err.code === 1 || err.code === 2) {
+                            document.getElementById('location-help').style.display = 'block';
+                        }
                     },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
                 );
