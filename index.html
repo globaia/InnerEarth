@@ -416,17 +416,12 @@
         <h4>Line Animation</h4>
         <div class="checkbox-row">
             <input type="checkbox" id="line-animation-toggle">
-            <label for="line-animation-toggle" style="margin:0;color:#aaa;">Animate lines</label>
+            <label for="line-animation-toggle" style="margin:0;color:#aaa;">Animate when toggled</label>
         </div>
         <div id="line-animation-controls" style="margin-top:6px;display:none;">
             <label style="font-size:10px;color:#666;">Duration: <span id="line-duration-display">10s</span></label>
             <input type="range" id="line-duration-slider" min="3" max="30" value="10" style="width:100%;">
-            <label style="font-size:10px;color:#666;margin-top:4px;display:block;">Sources:</label>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
-                <label style="font-size:10px;color:#888;"><input type="checkbox" id="anim-coastlines" checked> Coastlines</label>
-                <label style="font-size:10px;color:#888;"><input type="checkbox" id="anim-geogrid" checked> Geo Grid</label>
-                <label style="font-size:10px;color:#888;"><input type="checkbox" id="anim-subjgrid"> Subj Grid</label>
-            </div>
+            <p style="font-size:9px;color:#555;margin:4px 0 0 0;">Lines animate once when a layer is toggled on.</p>
         </div>
 
         <h4>Great Circle</h4>
@@ -2117,6 +2112,7 @@
         document.getElementById('subjective-grid-toggle').addEventListener('change', e => {
             showSubjectiveGrid = e.target.checked;
             if (subjectiveGridGroup) subjectiveGridGroup.visible = showSubjectiveGrid;
+            if (e.target.checked) animateLayerOnToggle('subjgrid');
         });
 
         document.getElementById('cities-toggle').addEventListener('change', e => {
@@ -2352,11 +2348,13 @@
         document.getElementById('geo-grid-toggle').addEventListener('change', e => {
             showGeoGrid = e.target.checked;
             if (geoGridGroup) geoGridGroup.visible = showGeoGrid;
+            if (e.target.checked) animateLayerOnToggle('geogrid');
         });
 
         document.getElementById('coastlines-toggle').addEventListener('change', e => {
             showCoastlines = e.target.checked;
             if (sphereGroup) sphereGroup.visible = showCoastlines;
+            if (e.target.checked) animateLayerOnToggle('coastlines');
         });
 
         document.getElementById('daynight-toggle').addEventListener('change', e => {
@@ -2586,261 +2584,218 @@
             updateInfo();
         }
 
-        // === Line Animation System ===
+        // === Line Animation System (triggered on layer toggle) ===
         let lineAnimationEnabled = false;
         let lineAnimationDuration = 10000; // 10 seconds default
-        let lineAnimationGroup = null;
-        let activeLineAnimations = [];
-        let coastlineSegments = []; // Will store extracted coastline segments
+        let activeLayerAnimations = []; // Track active layer animations
 
-        function initLineAnimationGroup() {
-            lineAnimationGroup = new THREE.Group();
-            scene.add(lineAnimationGroup);
-        }
-
-        // Extract segments from coastline data for animation
-        function storeCoastlineSegments(geojson) {
-            coastlineSegments = [];
-            geojson.features.forEach(feature => {
-                const geom = feature.geometry;
-                if (geom.type === 'LineString' && geom.coordinates.length > 10) {
-                    coastlineSegments.push(geom.coordinates);
-                } else if (geom.type === 'MultiLineString') {
-                    geom.coordinates.forEach(line => {
-                        if (line.length > 10) {
-                            coastlineSegments.push(line);
-                        }
-                    });
-                }
-            });
-            console.log(`Stored ${coastlineSegments.length} coastline segments for animation`);
-        }
-
-        // Generate a random geographic grid segment
-        function generateGeoGridSegment() {
-            const isLatitude = Math.random() > 0.5;
-            const points = [];
-
-            if (isLatitude) {
-                // Latitude line segment
-                const lat = Math.floor(Math.random() * 12 - 6) * 15; // -90 to 90 in steps of 15
-                const startLon = Math.random() * 300 - 150;
-                const spanLon = 30 + Math.random() * 90; // 30-120 degrees span
-                for (let i = 0; i <= 60; i++) {
-                    const lon = startLon + (i / 60) * spanLon;
-                    points.push(geoToSphere(lat, lon));
-                }
-            } else {
-                // Longitude line segment
-                const lon = Math.floor(Math.random() * 24 - 12) * 15; // -180 to 180 in steps of 15
-                const startLat = -60 + Math.random() * 60;
-                const spanLat = 30 + Math.random() * 60; // 30-90 degrees span
-                for (let i = 0; i <= 60; i++) {
-                    const lat = startLat + (i / 60) * spanLat;
-                    points.push(geoToSphere(lat, lon));
-                }
-            }
-            return points;
-        }
-
-        // Generate a random subjective grid segment (distance circle or azimuth line)
-        function generateSubjGridSegment() {
-            const isDistanceCircle = Math.random() > 0.4;
-            const points = [];
-
-            if (isDistanceCircle) {
-                // Partial distance circle
-                const distances = [500, 1000, 2000, 3000, 5000, 7500, 10000, 15000];
-                const distKm = distances[Math.floor(Math.random() * distances.length)];
-                const distDeg = (distKm / 111.32); // Rough conversion
-                const startAz = Math.random() * Math.PI * 2;
-                const spanAz = Math.PI * 0.5 + Math.random() * Math.PI; // 90-270 degrees
-
-                for (let i = 0; i <= 50; i++) {
-                    const az = startAz + (i / 50) * spanAz;
-                    const dest = destinationPoint(nadir.lat, nadir.lon, az, distDeg);
-                    points.push(geoToSphere(dest.lat, dest.lon));
-                }
-            } else {
-                // Azimuth line segment
-                const az = Math.random() * Math.PI * 2;
-                const startDist = Math.random() * 30;
-                const endDist = startDist + 20 + Math.random() * 60;
-
-                for (let i = 0; i <= 50; i++) {
-                    const dist = startDist + (i / 50) * (endDist - startDist);
-                    const dest = destinationPoint(nadir.lat, nadir.lon, az, dist);
-                    points.push(geoToSphere(dest.lat, dest.lon));
-                }
-            }
-            return points;
-        }
-
-        // Generate a random coastline segment
-        function generateCoastlineSegment() {
-            if (coastlineSegments.length === 0) return generateGeoGridSegment(); // Fallback
-
-            const segment = coastlineSegments[Math.floor(Math.random() * coastlineSegments.length)];
-            const segLen = segment.length;
-
-            // Pick a random subsection
-            const startIdx = Math.floor(Math.random() * (segLen * 0.7));
-            const endIdx = Math.min(segLen - 1, startIdx + 20 + Math.floor(Math.random() * 80));
-
-            const points = [];
-            for (let i = startIdx; i <= endIdx; i++) {
-                const coord = segment[i];
-                points.push(geoToSphere(coord[1], coord[0]));
-            }
-            return points;
-        }
-
-        // Start a single line animation
-        function startRandomLineAnimation() {
+        // Animate a layer when toggled ON
+        function animateLayerOnToggle(layerType) {
             if (!lineAnimationEnabled) return;
 
-            // Determine which sources are enabled
-            const sources = [];
-            if (document.getElementById('anim-coastlines').checked) sources.push('coastline');
-            if (document.getElementById('anim-geogrid').checked) sources.push('geogrid');
-            if (document.getElementById('anim-subjgrid').checked) sources.push('subjgrid');
+            // Cancel any existing animation for this layer
+            activeLayerAnimations = activeLayerAnimations.filter(a => {
+                if (a.layerType === layerType) {
+                    // Restore original visibility
+                    if (a.originalGroup) {
+                        a.originalGroup.visible = true;
+                        a.originalGroup.traverse(obj => {
+                            if (obj.material) obj.material.opacity = a.originalOpacities.get(obj) || 1;
+                        });
+                    }
+                    return false;
+                }
+                return true;
+            });
 
-            if (sources.length === 0) return;
+            let targetGroup, lines = [];
 
-            // Pick a random source
-            const source = sources[Math.floor(Math.random() * sources.length)];
-            let points;
-            let color;
-
-            switch (source) {
-                case 'coastline':
-                    points = generateCoastlineSegment();
-                    color = 0x00ffaa; // Cyan-green for coastlines
-                    break;
+            switch (layerType) {
                 case 'geogrid':
-                    points = generateGeoGridSegment();
-                    color = 0x00aaff; // Blue for geo grid
+                    targetGroup = geoGridGroup;
+                    if (!targetGroup) return;
+
+                    // Collect all lines with their latitude/longitude values
+                    const parallels = [];
+                    const meridians = [];
+                    let lineIdx = 0;
+
+                    // The geoGridGroup has: 13 lat lines (-90 to 90 step 15), 4 special lat lines, 24 lon lines
+                    targetGroup.children.forEach((line, idx) => {
+                        if (idx < 13) {
+                            // Latitude lines: -90, -75, -60, -45, -30, -15, 0, 15, 30, 45, 60, 75, 90
+                            const lat = -90 + idx * 15;
+                            parallels.push({ line, lat, idx });
+                        } else if (idx < 17) {
+                            // Special latitudes (tropics, polar circles) - treat as parallels
+                            const specialLats = [23.4365, -23.4365, 66.5636, -66.5636];
+                            parallels.push({ line, lat: specialLats[idx - 13], idx });
+                        } else {
+                            // Longitude lines: -180 to 165 step 15
+                            const lon = -180 + (idx - 17) * 15;
+                            meridians.push({ line, lon, idx });
+                        }
+                    });
+
+                    // Sort parallels by distance from user's latitude (closest first)
+                    const userLat = nadir.lat;
+                    parallels.sort((a, b) => Math.abs(a.lat - userLat) - Math.abs(b.lat - userLat));
+
+                    // Sort meridians: start from closest pole
+                    // Determine closest pole based on user latitude
+                    const closestPoleIsNorth = userLat > 0;
+                    // Meridians trace from one pole to the other
+                    // We'll animate them all at once but the direction is set by startFromNorth
+
+                    lines = [...parallels.map(p => ({ ...p, type: 'parallel' })),
+                             ...meridians.map(m => ({ ...m, type: 'meridian', startFromNorth: !closestPoleIsNorth }))];
                     break;
+
                 case 'subjgrid':
-                    points = generateSubjGridSegment();
-                    color = 0xffaa00; // Orange for subjective grid
+                    targetGroup = subjectiveGridGroup;
+                    if (!targetGroup) return;
+
+                    // Subjective grid: 11 distance circles, then 12 azimuth lines
+                    const circles = [];
+                    const azimuths = [];
+                    const distances = [15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165];
+
+                    targetGroup.children.forEach((line, idx) => {
+                        if (idx < 11) {
+                            // Distance circles - already ordered from closest (15) to farthest (165)
+                            circles.push({ line, dist: distances[idx], idx });
+                        } else {
+                            // Azimuth lines
+                            const az = (idx - 11) * 30;
+                            azimuths.push({ line, az, idx });
+                        }
+                    });
+
+                    // Circles are already in order (closest to farthest)
+                    // Azimuth lines animate from user toward antipode
+                    lines = [...circles.map(c => ({ ...c, type: 'circle' })),
+                             ...azimuths.map(a => ({ ...a, type: 'azimuth' }))];
+                    break;
+
+                case 'coastlines':
+                    targetGroup = sphereGroup;
+                    if (!targetGroup) return;
+
+                    // For coastlines, just animate all lines progressively
+                    targetGroup.children.forEach((line, idx) => {
+                        if (line.geometry) {
+                            lines.push({ line, idx, type: 'coastline' });
+                        }
+                    });
                     break;
             }
 
-            if (points.length < 3) return;
+            if (lines.length === 0) return;
 
-            // Create the animated line
-            const geo = new THREE.BufferGeometry().setFromPoints(points);
-            const mat = new THREE.LineBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0,
-                linewidth: 2,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
+            // Store original opacities
+            const originalOpacities = new Map();
+            lines.forEach(item => {
+                if (item.line.material) {
+                    originalOpacities.set(item.line, item.line.material.opacity);
+                    item.line.material.opacity = 0;
+                }
+                // Store original draw range
+                if (item.line.geometry) {
+                    const posAttr = item.line.geometry.getAttribute('position');
+                    item.pointCount = posAttr ? posAttr.count : 0;
+                    item.line.geometry.setDrawRange(0, 0);
+                }
             });
 
-            const line = new THREE.Line(geo, mat);
-            const pointCount = points.length;
-            line.geometry.setDrawRange(0, 0);
-            lineAnimationGroup.add(line);
-
-            const startTime = performance.now();
-            const duration = lineAnimationDuration;
-
             const animation = {
-                line: line,
-                startTime: startTime,
-                duration: duration,
-                pointCount: pointCount,
-                phase: 'drawing' // 'drawing' -> 'fading'
+                layerType,
+                originalGroup: targetGroup,
+                originalOpacities,
+                lines,
+                startTime: performance.now(),
+                duration: lineAnimationDuration
             };
 
-            activeLineAnimations.push(animation);
+            activeLayerAnimations.push(animation);
         }
 
-        // Update all active line animations
-        function updateLineAnimations() {
-            if (!lineAnimationEnabled || activeLineAnimations.length === 0) return;
+        // Update layer animations
+        function updateLayerAnimations() {
+            if (activeLayerAnimations.length === 0) return;
 
             const now = performance.now();
             const toRemove = [];
 
-            activeLineAnimations.forEach((anim, idx) => {
+            activeLayerAnimations.forEach((anim, animIdx) => {
                 const elapsed = now - anim.startTime;
+                const totalProgress = Math.min(1, elapsed / anim.duration);
 
-                if (anim.phase === 'drawing') {
-                    const progress = Math.min(1, elapsed / anim.duration);
-                    // Ease-in-out
-                    const easedProgress = progress < 0.5
-                        ? 2 * progress * progress
-                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                // Calculate how many lines should be fully drawn
+                const totalLines = anim.lines.length;
 
-                    // Draw the line progressively
-                    const pointsToShow = Math.floor(easedProgress * anim.pointCount);
-                    anim.line.geometry.setDrawRange(0, pointsToShow);
+                // Ease function for smooth animation
+                const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
-                    // Fade in and pulse
-                    const fadeIn = Math.min(1, elapsed / 500); // Fade in over 500ms
-                    const pulse = 0.7 + 0.3 * Math.sin(elapsed / 100);
-                    anim.line.material.opacity = fadeIn * pulse;
+                anim.lines.forEach((item, lineIdx) => {
+                    // Each line gets a slice of the total duration
+                    // Stagger: each line starts a bit after the previous
+                    const lineStartProgress = (lineIdx / totalLines) * 0.7; // Lines start within first 70% of duration
+                    const lineEndProgress = lineStartProgress + 0.3; // Each line takes 30% of duration to draw
 
-                    if (progress >= 1) {
-                        anim.phase = 'fading';
-                        anim.fadeStartTime = now;
+                    let lineProgress = 0;
+                    if (totalProgress >= lineEndProgress) {
+                        lineProgress = 1;
+                    } else if (totalProgress > lineStartProgress) {
+                        lineProgress = (totalProgress - lineStartProgress) / (lineEndProgress - lineStartProgress);
                     }
-                } else if (anim.phase === 'fading') {
-                    const fadeElapsed = now - anim.fadeStartTime;
-                    const fadeDuration = 1500; // 1.5s fade out
-                    const fadeProgress = Math.min(1, fadeElapsed / fadeDuration);
 
-                    anim.line.material.opacity = (1 - fadeProgress) * 0.8;
+                    const easedProgress = ease(lineProgress);
 
-                    if (fadeProgress >= 1) {
-                        toRemove.push(idx);
+                    // Handle draw direction for meridians
+                    if (item.type === 'meridian' && item.startFromNorth && item.pointCount > 0) {
+                        // Draw from end to start (north to south if startFromNorth)
+                        const pointsToShow = Math.floor(easedProgress * item.pointCount);
+                        const startPoint = item.pointCount - pointsToShow;
+                        item.line.geometry.setDrawRange(startPoint, pointsToShow);
+                    } else if (item.type === 'azimuth' && item.pointCount > 0) {
+                        // Azimuth lines go from user (0) to antipode (180 degrees)
+                        const pointsToShow = Math.floor(easedProgress * item.pointCount);
+                        item.line.geometry.setDrawRange(0, pointsToShow);
+                    } else if (item.pointCount > 0) {
+                        // Default: draw from start
+                        const pointsToShow = Math.floor(easedProgress * item.pointCount);
+                        item.line.geometry.setDrawRange(0, pointsToShow);
                     }
+
+                    // Fade in opacity
+                    const originalOpacity = anim.originalOpacities.get(item.line) || 1;
+                    item.line.material.opacity = easedProgress * originalOpacity;
+                });
+
+                // Animation complete
+                if (totalProgress >= 1) {
+                    // Restore full draw range and original opacity
+                    anim.lines.forEach(item => {
+                        if (item.pointCount > 0) {
+                            item.line.geometry.setDrawRange(0, item.pointCount);
+                        }
+                        const originalOpacity = anim.originalOpacities.get(item.line) || 1;
+                        item.line.material.opacity = originalOpacity;
+                    });
+                    toRemove.push(animIdx);
                 }
             });
 
-            // Remove completed animations (in reverse to maintain indices)
+            // Remove completed animations
             toRemove.reverse().forEach(idx => {
-                const anim = activeLineAnimations[idx];
-                lineAnimationGroup.remove(anim.line);
-                anim.line.geometry.dispose();
-                anim.line.material.dispose();
-                activeLineAnimations.splice(idx, 1);
+                activeLayerAnimations.splice(idx, 1);
             });
         }
 
-        // Line animation scheduler
-        let lastLineAnimStart = 0;
-        function scheduleLineAnimations() {
-            if (!lineAnimationEnabled) return;
-
-            const now = performance.now();
-            // Start a new animation every 2-4 seconds (randomized)
-            const interval = 2000 + Math.random() * 2000;
-
-            if (now - lastLineAnimStart > interval && activeLineAnimations.length < 5) {
-                startRandomLineAnimation();
-                lastLineAnimStart = now;
-            }
-        }
-
-        // Toggle line animation
+        // Toggle line animation mode
         function toggleLineAnimation(enabled) {
             lineAnimationEnabled = enabled;
             document.getElementById('line-animation-controls').style.display = enabled ? 'block' : 'none';
-
-            if (!enabled) {
-                // Clear all active animations
-                activeLineAnimations.forEach(anim => {
-                    lineAnimationGroup.remove(anim.line);
-                    anim.line.geometry.dispose();
-                    anim.line.material.dispose();
-                });
-                activeLineAnimations = [];
-            }
         }
 
         // Event listeners for line animation
@@ -2862,9 +2817,8 @@
             updateAnimation();
             updateWalking();
 
-            // Line animation system
-            scheduleLineAnimations();
-            updateLineAnimations();
+            // Layer animation system (triggered on toggle)
+            updateLayerAnimations();
 
             // Update day/night sphere every 30 seconds when enabled (for real-time sun movement)
             const now = performance.now();
@@ -2884,7 +2838,6 @@
         createLabels();
         createHomeMarker();
         initGreatCircleGroup();
-        initLineAnimationGroup();
         document.getElementById('greatcircle-toggle').checked = true;  // Default on
         loadDefaultSettings();  // Load saved default view if available
         updateCameraLook();
