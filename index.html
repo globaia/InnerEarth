@@ -1053,14 +1053,12 @@
             });
 
             antipodeLabelSprite = new THREE.Sprite(labelMat);
-            antipodeLabelSprite.scale.set(0.07, 0.018, 1);  // Bigger, readable size
+            antipodeLabelSprite.scale.set(0.08, 0.02, 1);  // Bigger, readable size
 
-            // Position ABOVE the marker by offsetting toward user's location (equatorward)
-            // Calculate offset direction: from antipode toward user (nadir)
-            const nadirPos = geoToSphere(nadir.lat, nadir.lon);
-            const offsetDir = nadirPos.clone().sub(pos).normalize();
-            const labelPos = pos.clone().add(offsetDir.multiplyScalar(0.15));  // Offset toward user = visually above
-            antipodeLabelSprite.position.copy(labelPos);
+            // Position label ABOVE the dot using sprite's center offset
+            // The sprite center property moves where the sprite renders relative to its position
+            antipodeLabelSprite.center.set(0.5, -0.5);  // Shift sprite up (renders above its position point)
+            antipodeLabelSprite.position.copy(pos).multiplyScalar(1.002);  // Same as marker
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
             scene.add(antipodeLabelSprite);
@@ -2577,11 +2575,9 @@
                 const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
                 const pos = geoToSphere(antipodeLat, antipodeLon);
                 antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
-                // Also update label position - offset toward user so it appears above
+                // Also update label position (sprite center handles the "above" offset)
                 if (antipodeLabelSprite) {
-                    const nadirPos = geoToSphere(nadir.lat, nadir.lon);
-                    const offsetDir = nadirPos.clone().sub(pos).normalize();
-                    antipodeLabelSprite.position.copy(pos).add(offsetDir.multiplyScalar(0.15));
+                    antipodeLabelSprite.position.copy(pos).multiplyScalar(1.002);
                 }
             }
 
