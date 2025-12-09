@@ -402,6 +402,22 @@
 
         <button class="btn-secondary" id="set-default-btn" style="margin-top:10px;width:100%;">Set Default View</button>
 
+        <h4>Line Animation</h4>
+        <div class="checkbox-row">
+            <input type="checkbox" id="line-animation-toggle">
+            <label for="line-animation-toggle" style="margin:0;color:#aaa;">Animate lines</label>
+        </div>
+        <div id="line-animation-controls" style="margin-top:6px;display:none;">
+            <label style="font-size:10px;color:#666;">Duration: <span id="line-duration-display">10s</span></label>
+            <input type="range" id="line-duration-slider" min="3" max="30" value="10" style="width:100%;">
+            <label style="font-size:10px;color:#666;margin-top:4px;display:block;">Sources:</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
+                <label style="font-size:10px;color:#888;"><input type="checkbox" id="anim-coastlines" checked> Coastlines</label>
+                <label style="font-size:10px;color:#888;"><input type="checkbox" id="anim-geogrid" checked> Geo Grid</label>
+                <label style="font-size:10px;color:#888;"><input type="checkbox" id="anim-subjgrid"> Subj Grid</label>
+            </div>
+        </div>
+
         <h4>Great Circle</h4>
         <div class="checkbox-row">
             <input type="checkbox" id="greatcircle-toggle">
@@ -1673,6 +1689,9 @@
             });
 
             sphereGroup.add(coastGroup);
+
+            // Store coastline segments for line animation system
+            storeCoastlineSegments(geojson);
         }
 
         // === Create All Content ===
@@ -2499,6 +2518,273 @@
             updateInfo();
         }
 
+        // === Line Animation System ===
+        let lineAnimationEnabled = false;
+        let lineAnimationDuration = 10000; // 10 seconds default
+        let lineAnimationGroup = null;
+        let activeLineAnimations = [];
+        let coastlineSegments = []; // Will store extracted coastline segments
+
+        function initLineAnimationGroup() {
+            lineAnimationGroup = new THREE.Group();
+            scene.add(lineAnimationGroup);
+        }
+
+        // Extract segments from coastline data for animation
+        function storeCoastlineSegments(geojson) {
+            coastlineSegments = [];
+            geojson.features.forEach(feature => {
+                const geom = feature.geometry;
+                if (geom.type === 'LineString' && geom.coordinates.length > 10) {
+                    coastlineSegments.push(geom.coordinates);
+                } else if (geom.type === 'MultiLineString') {
+                    geom.coordinates.forEach(line => {
+                        if (line.length > 10) {
+                            coastlineSegments.push(line);
+                        }
+                    });
+                }
+            });
+            console.log(`Stored ${coastlineSegments.length} coastline segments for animation`);
+        }
+
+        // Generate a random geographic grid segment
+        function generateGeoGridSegment() {
+            const isLatitude = Math.random() > 0.5;
+            const points = [];
+
+            if (isLatitude) {
+                // Latitude line segment
+                const lat = Math.floor(Math.random() * 12 - 6) * 15; // -90 to 90 in steps of 15
+                const startLon = Math.random() * 300 - 150;
+                const spanLon = 30 + Math.random() * 90; // 30-120 degrees span
+                for (let i = 0; i <= 60; i++) {
+                    const lon = startLon + (i / 60) * spanLon;
+                    points.push(geoToSphere(lat, lon));
+                }
+            } else {
+                // Longitude line segment
+                const lon = Math.floor(Math.random() * 24 - 12) * 15; // -180 to 180 in steps of 15
+                const startLat = -60 + Math.random() * 60;
+                const spanLat = 30 + Math.random() * 60; // 30-90 degrees span
+                for (let i = 0; i <= 60; i++) {
+                    const lat = startLat + (i / 60) * spanLat;
+                    points.push(geoToSphere(lat, lon));
+                }
+            }
+            return points;
+        }
+
+        // Generate a random subjective grid segment (distance circle or azimuth line)
+        function generateSubjGridSegment() {
+            const isDistanceCircle = Math.random() > 0.4;
+            const points = [];
+
+            if (isDistanceCircle) {
+                // Partial distance circle
+                const distances = [500, 1000, 2000, 3000, 5000, 7500, 10000, 15000];
+                const distKm = distances[Math.floor(Math.random() * distances.length)];
+                const distDeg = (distKm / 111.32); // Rough conversion
+                const startAz = Math.random() * Math.PI * 2;
+                const spanAz = Math.PI * 0.5 + Math.random() * Math.PI; // 90-270 degrees
+
+                for (let i = 0; i <= 50; i++) {
+                    const az = startAz + (i / 50) * spanAz;
+                    const dest = destinationPoint(nadir.lat, nadir.lon, az, distDeg);
+                    points.push(geoToSphere(dest.lat, dest.lon));
+                }
+            } else {
+                // Azimuth line segment
+                const az = Math.random() * Math.PI * 2;
+                const startDist = Math.random() * 30;
+                const endDist = startDist + 20 + Math.random() * 60;
+
+                for (let i = 0; i <= 50; i++) {
+                    const dist = startDist + (i / 50) * (endDist - startDist);
+                    const dest = destinationPoint(nadir.lat, nadir.lon, az, dist);
+                    points.push(geoToSphere(dest.lat, dest.lon));
+                }
+            }
+            return points;
+        }
+
+        // Generate a random coastline segment
+        function generateCoastlineSegment() {
+            if (coastlineSegments.length === 0) return generateGeoGridSegment(); // Fallback
+
+            const segment = coastlineSegments[Math.floor(Math.random() * coastlineSegments.length)];
+            const segLen = segment.length;
+
+            // Pick a random subsection
+            const startIdx = Math.floor(Math.random() * (segLen * 0.7));
+            const endIdx = Math.min(segLen - 1, startIdx + 20 + Math.floor(Math.random() * 80));
+
+            const points = [];
+            for (let i = startIdx; i <= endIdx; i++) {
+                const coord = segment[i];
+                points.push(geoToSphere(coord[1], coord[0]));
+            }
+            return points;
+        }
+
+        // Start a single line animation
+        function startRandomLineAnimation() {
+            if (!lineAnimationEnabled) return;
+
+            // Determine which sources are enabled
+            const sources = [];
+            if (document.getElementById('anim-coastlines').checked) sources.push('coastline');
+            if (document.getElementById('anim-geogrid').checked) sources.push('geogrid');
+            if (document.getElementById('anim-subjgrid').checked) sources.push('subjgrid');
+
+            if (sources.length === 0) return;
+
+            // Pick a random source
+            const source = sources[Math.floor(Math.random() * sources.length)];
+            let points;
+            let color;
+
+            switch (source) {
+                case 'coastline':
+                    points = generateCoastlineSegment();
+                    color = 0x00ffaa; // Cyan-green for coastlines
+                    break;
+                case 'geogrid':
+                    points = generateGeoGridSegment();
+                    color = 0x00aaff; // Blue for geo grid
+                    break;
+                case 'subjgrid':
+                    points = generateSubjGridSegment();
+                    color = 0xffaa00; // Orange for subjective grid
+                    break;
+            }
+
+            if (points.length < 3) return;
+
+            // Create the animated line
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+            const mat = new THREE.LineBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0,
+                linewidth: 2,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const line = new THREE.Line(geo, mat);
+            const pointCount = points.length;
+            line.geometry.setDrawRange(0, 0);
+            lineAnimationGroup.add(line);
+
+            const startTime = performance.now();
+            const duration = lineAnimationDuration;
+
+            const animation = {
+                line: line,
+                startTime: startTime,
+                duration: duration,
+                pointCount: pointCount,
+                phase: 'drawing' // 'drawing' -> 'fading'
+            };
+
+            activeLineAnimations.push(animation);
+        }
+
+        // Update all active line animations
+        function updateLineAnimations() {
+            if (!lineAnimationEnabled || activeLineAnimations.length === 0) return;
+
+            const now = performance.now();
+            const toRemove = [];
+
+            activeLineAnimations.forEach((anim, idx) => {
+                const elapsed = now - anim.startTime;
+
+                if (anim.phase === 'drawing') {
+                    const progress = Math.min(1, elapsed / anim.duration);
+                    // Ease-in-out
+                    const easedProgress = progress < 0.5
+                        ? 2 * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                    // Draw the line progressively
+                    const pointsToShow = Math.floor(easedProgress * anim.pointCount);
+                    anim.line.geometry.setDrawRange(0, pointsToShow);
+
+                    // Fade in and pulse
+                    const fadeIn = Math.min(1, elapsed / 500); // Fade in over 500ms
+                    const pulse = 0.7 + 0.3 * Math.sin(elapsed / 100);
+                    anim.line.material.opacity = fadeIn * pulse;
+
+                    if (progress >= 1) {
+                        anim.phase = 'fading';
+                        anim.fadeStartTime = now;
+                    }
+                } else if (anim.phase === 'fading') {
+                    const fadeElapsed = now - anim.fadeStartTime;
+                    const fadeDuration = 1500; // 1.5s fade out
+                    const fadeProgress = Math.min(1, fadeElapsed / fadeDuration);
+
+                    anim.line.material.opacity = (1 - fadeProgress) * 0.8;
+
+                    if (fadeProgress >= 1) {
+                        toRemove.push(idx);
+                    }
+                }
+            });
+
+            // Remove completed animations (in reverse to maintain indices)
+            toRemove.reverse().forEach(idx => {
+                const anim = activeLineAnimations[idx];
+                lineAnimationGroup.remove(anim.line);
+                anim.line.geometry.dispose();
+                anim.line.material.dispose();
+                activeLineAnimations.splice(idx, 1);
+            });
+        }
+
+        // Line animation scheduler
+        let lastLineAnimStart = 0;
+        function scheduleLineAnimations() {
+            if (!lineAnimationEnabled) return;
+
+            const now = performance.now();
+            // Start a new animation every 2-4 seconds (randomized)
+            const interval = 2000 + Math.random() * 2000;
+
+            if (now - lastLineAnimStart > interval && activeLineAnimations.length < 5) {
+                startRandomLineAnimation();
+                lastLineAnimStart = now;
+            }
+        }
+
+        // Toggle line animation
+        function toggleLineAnimation(enabled) {
+            lineAnimationEnabled = enabled;
+            document.getElementById('line-animation-controls').style.display = enabled ? 'block' : 'none';
+
+            if (!enabled) {
+                // Clear all active animations
+                activeLineAnimations.forEach(anim => {
+                    lineAnimationGroup.remove(anim.line);
+                    anim.line.geometry.dispose();
+                    anim.line.material.dispose();
+                });
+                activeLineAnimations = [];
+            }
+        }
+
+        // Event listeners for line animation
+        document.getElementById('line-animation-toggle').addEventListener('change', e => {
+            toggleLineAnimation(e.target.checked);
+        });
+
+        document.getElementById('line-duration-slider').addEventListener('input', e => {
+            lineAnimationDuration = parseInt(e.target.value) * 1000;
+            document.getElementById('line-duration-display').textContent = e.target.value + 's';
+        });
+
         // === Animation Loop ===
         let lastDayNightUpdate = 0;
         function animate() {
@@ -2507,6 +2793,10 @@
             updateCameraInertia();  // Smooth camera momentum
             updateAnimation();
             updateWalking();
+
+            // Line animation system
+            scheduleLineAnimations();
+            updateLineAnimations();
 
             // Update day/night sphere every 30 seconds when enabled (for real-time sun movement)
             const now = performance.now();
@@ -2526,6 +2816,7 @@
         createLabels();
         createHomeMarker();
         initGreatCircleGroup();
+        initLineAnimationGroup();
         document.getElementById('greatcircle-toggle').checked = true;  // Default on
         loadDefaultSettings();  // Load saved default view if available
         updateCameraLook();
