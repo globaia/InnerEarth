@@ -1026,23 +1026,23 @@
             antipodeMarkerMesh.visible = showHomeMarker;
             scene.add(antipodeMarkerMesh);
 
-            // Create ANTIPODE label
+            // Create ANTIPODE label (smaller, matching UI font size ~11-12px equivalent)
             const labelCanvas = document.createElement('canvas');
-            labelCanvas.width = 256;
-            labelCanvas.height = 64;
+            labelCanvas.width = 128;
+            labelCanvas.height = 32;
             const labelCtx = labelCanvas.getContext('2d');
 
-            // Draw text
-            labelCtx.font = 'bold 36px Arial, sans-serif';
+            // Draw text - smaller font to match UI
+            labelCtx.font = 'bold 18px Arial, sans-serif';
             labelCtx.textAlign = 'center';
             labelCtx.textBaseline = 'middle';
             // Red outline/glow
             labelCtx.strokeStyle = '#880000';
-            labelCtx.lineWidth = 4;
-            labelCtx.strokeText('ANTIPODE', 128, 32);
+            labelCtx.lineWidth = 2;
+            labelCtx.strokeText('ANTIPODE', 64, 16);
             // Red fill
             labelCtx.fillStyle = '#ff3333';
-            labelCtx.fillText('ANTIPODE', 128, 32);
+            labelCtx.fillText('ANTIPODE', 64, 16);
 
             const labelTexture = new THREE.CanvasTexture(labelCanvas);
             const labelMat = new THREE.SpriteMaterial({
@@ -1053,10 +1053,10 @@
             });
 
             antipodeLabelSprite = new THREE.Sprite(labelMat);
-            antipodeLabelSprite.scale.set(0.08, 0.02, 1);  // Wide for text
+            antipodeLabelSprite.scale.set(0.05, 0.0125, 1);  // Smaller to match UI font size
 
-            // Position slightly above the marker (toward center from antipode position)
-            const labelPos = pos.clone().multiplyScalar(0.96);  // Closer to center = appears above marker
+            // Position above the marker (further from center = above when viewed from inside)
+            const labelPos = pos.clone().multiplyScalar(1.015);  // Outside surface = above marker
             antipodeLabelSprite.position.copy(labelPos);
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
@@ -2354,7 +2354,6 @@
         document.getElementById('coastlines-toggle').addEventListener('change', e => {
             showCoastlines = e.target.checked;
             if (sphereGroup) sphereGroup.visible = showCoastlines;
-            if (e.target.checked) animateLayerOnToggle('coastlines');
         });
 
         document.getElementById('daynight-toggle').addEventListener('change', e => {
@@ -2577,7 +2576,7 @@
                 antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
                 // Also update label position
                 if (antipodeLabelSprite) {
-                    antipodeLabelSprite.position.copy(pos).multiplyScalar(0.96);
+                    antipodeLabelSprite.position.copy(pos).multiplyScalar(1.015);
                 }
             }
 
@@ -2677,17 +2676,6 @@
                              ...azimuths.map(a => ({ ...a, type: 'azimuth' }))];
                     break;
 
-                case 'coastlines':
-                    targetGroup = sphereGroup;
-                    if (!targetGroup) return;
-
-                    // For coastlines, just animate all lines progressively
-                    targetGroup.children.forEach((line, idx) => {
-                        if (line.geometry) {
-                            lines.push({ line, idx, type: 'coastline' });
-                        }
-                    });
-                    break;
             }
 
             if (lines.length === 0) return;
