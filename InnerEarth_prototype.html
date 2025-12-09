@@ -1059,7 +1059,7 @@
             // Calculate offset direction: from antipode toward user (nadir)
             const nadirPos = geoToSphere(nadir.lat, nadir.lon);
             const offsetDir = nadirPos.clone().sub(pos).normalize();
-            const labelPos = pos.clone().add(offsetDir.multiplyScalar(0.04));  // Offset toward user = visually above
+            const labelPos = pos.clone().add(offsetDir.multiplyScalar(0.15));  // Offset toward user = visually above
             antipodeLabelSprite.position.copy(labelPos);
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
@@ -2581,7 +2581,7 @@
                 if (antipodeLabelSprite) {
                     const nadirPos = geoToSphere(nadir.lat, nadir.lon);
                     const offsetDir = nadirPos.clone().sub(pos).normalize();
-                    antipodeLabelSprite.position.copy(pos).add(offsetDir.multiplyScalar(0.04));
+                    antipodeLabelSprite.position.copy(pos).add(offsetDir.multiplyScalar(0.15));
                 }
             }
 
