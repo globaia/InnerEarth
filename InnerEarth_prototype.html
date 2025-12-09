@@ -1026,23 +1026,23 @@
             antipodeMarkerMesh.visible = showHomeMarker;
             scene.add(antipodeMarkerMesh);
 
-            // Create ANTIPODE label (smaller, matching UI font size ~11-12px equivalent)
+            // Create ANTIPODE label (UI-sized text)
             const labelCanvas = document.createElement('canvas');
-            labelCanvas.width = 128;
-            labelCanvas.height = 32;
+            labelCanvas.width = 256;
+            labelCanvas.height = 64;
             const labelCtx = labelCanvas.getContext('2d');
 
-            // Draw text - smaller font to match UI
-            labelCtx.font = 'bold 18px Arial, sans-serif';
+            // Draw text - bigger, clear font matching UI
+            labelCtx.font = 'bold 32px Arial, sans-serif';
             labelCtx.textAlign = 'center';
             labelCtx.textBaseline = 'middle';
             // Red outline/glow
             labelCtx.strokeStyle = '#880000';
-            labelCtx.lineWidth = 2;
-            labelCtx.strokeText('ANTIPODE', 64, 16);
+            labelCtx.lineWidth = 3;
+            labelCtx.strokeText('ANTIPODE', 128, 32);
             // Red fill
             labelCtx.fillStyle = '#ff3333';
-            labelCtx.fillText('ANTIPODE', 64, 16);
+            labelCtx.fillText('ANTIPODE', 128, 32);
 
             const labelTexture = new THREE.CanvasTexture(labelCanvas);
             const labelMat = new THREE.SpriteMaterial({
@@ -1053,10 +1053,13 @@
             });
 
             antipodeLabelSprite = new THREE.Sprite(labelMat);
-            antipodeLabelSprite.scale.set(0.05, 0.0125, 1);  // Smaller to match UI font size
+            antipodeLabelSprite.scale.set(0.07, 0.018, 1);  // Bigger, readable size
 
-            // Position above the marker (further from center = above when viewed from inside)
-            const labelPos = pos.clone().multiplyScalar(1.015);  // Outside surface = above marker
+            // Position ABOVE the marker by offsetting toward user's location (equatorward)
+            // Calculate offset direction: from antipode toward user (nadir)
+            const nadirPos = geoToSphere(nadir.lat, nadir.lon);
+            const offsetDir = nadirPos.clone().sub(pos).normalize();
+            const labelPos = pos.clone().add(offsetDir.multiplyScalar(0.04));  // Offset toward user = visually above
             antipodeLabelSprite.position.copy(labelPos);
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
@@ -2574,9 +2577,11 @@
                 const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
                 const pos = geoToSphere(antipodeLat, antipodeLon);
                 antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
-                // Also update label position
+                // Also update label position - offset toward user so it appears above
                 if (antipodeLabelSprite) {
-                    antipodeLabelSprite.position.copy(pos).multiplyScalar(1.015);
+                    const nadirPos = geoToSphere(nadir.lat, nadir.lon);
+                    const offsetDir = nadirPos.clone().sub(pos).normalize();
+                    antipodeLabelSprite.position.copy(pos).add(offsetDir.multiplyScalar(0.04));
                 }
             }
 
