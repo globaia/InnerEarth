@@ -1,0 +1,22 @@
+# Large Earth texture files (not needed for GitHub deployment)
+assets/earth/earth_10800.jpg
+assets/earth/earth_21600.jpg
+assets/earth/earth_43600.jpg
+assets/earth/*.tif
+assets/earth/.venv/
+
+# Tiles (too many files)
+assets/tiles/
+
+# Package files
+InnerEarth-Package.zip
+InnerEarth-Package/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keep only the essential files for GitHub Pages:
+# - index.html (main file)
+# - assets/earth/earth_4k.jpg (satellite texture)
+# - assets/earth/earth_4k_topo.jpg (optional topo)

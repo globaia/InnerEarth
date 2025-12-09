@@ -1,0 +1,2531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>InnerEarth | Perfect Sphere</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        #container { width: 100%; height: 100%; }
+
+        .controls {
+            position: fixed;
+            top: 15px; right: 15px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px; border-radius: 10px;
+            color: #fff; font-family: system-ui, sans-serif;
+            font-size: 12px; z-index: 100;
+            max-width: 280px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .controls h3 { color: #0af; margin-bottom: 10px; }
+        .controls h4 { color: #888; margin: 12px 0 6px 0; font-size: 11px; }
+        .controls label { display: block; color: #888; font-size: 11px; margin-bottom: 4px; }
+        .controls input[type="text"], .controls select {
+            width: 100%; padding: 6px 8px;
+            background: #222; border: 1px solid #444;
+            color: #fff; border-radius: 4px; margin-bottom: 8px;
+        }
+        .controls input[type="range"] { width: 100%; }
+        .controls button {
+            padding: 6px 10px; margin: 2px;
+            border: none; border-radius: 4px;
+            cursor: pointer; font-size: 11px;
+        }
+        .btn-primary { background: #0af; color: #000; font-weight: 600; }
+        .btn-secondary { background: #333; color: #ccc; }
+        .checkbox-row {
+            display: flex; align-items: center; gap: 8px;
+            margin: 4px 0; font-size: 11px; color: #aaa;
+        }
+        .checkbox-row input { margin: 0; }
+
+        /* Thin opacity sliders */
+        .opacity-slider {
+            width: 100%;
+            height: 3px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #333;
+            border-radius: 2px;
+            margin: 2px 0 6px 20px;
+            max-width: calc(100% - 20px);
+        }
+        .opacity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 10px;
+            height: 10px;
+            background: #0af;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .opacity-slider::-moz-range-thumb {
+            width: 10px;
+            height: 10px;
+            background: #0af;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .info {
+            position: fixed;
+            top: 15px; left: 15px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px; border-radius: 10px;
+            color: #fff; font-family: system-ui, sans-serif;
+            font-size: 12px; z-index: 100;
+        }
+        .info h3 { color: #0af; margin-bottom: 8px; }
+
+        .help {
+            position: fixed;
+            bottom: 15px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px; border-radius: 20px;
+            color: #888; font-family: system-ui, sans-serif;
+            font-size: 11px; z-index: 100;
+        }
+        .help strong { color: #0af; }
+
+        #loading {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0af; font-size: 18px;
+            font-family: system-ui, sans-serif;
+            z-index: 200;
+        }
+
+        #city-label {
+            position: fixed;
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: system-ui, sans-serif;
+            pointer-events: none;
+            z-index: 150;
+            display: none;
+        }
+
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            z-index: 200;
+            display: none;
+        }
+        .autocomplete-results.show { display: block; }
+        .autocomplete-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            border-bottom: 1px solid #333;
+        }
+        .autocomplete-item:hover, .autocomplete-item.selected {
+            background: #0af;
+            color: #000;
+        }
+        .autocomplete-item .country {
+            color: #888;
+            font-size: 10px;
+        }
+        .autocomplete-item:hover .country { color: #333; }
+
+        .connection-list {
+            max-height: 120px;
+            overflow-y: auto;
+            margin-top: 6px;
+            font-size: 10px;
+        }
+        .connection-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 6px;
+            background: #1a1a1a;
+            margin: 2px 0;
+            border-radius: 3px;
+        }
+        .connection-item .dest { color: #fff; }
+        .connection-item .dist { color: #0af; }
+        .connection-item .remove {
+            color: #f44;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        /* About Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #111;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: #ddd;
+            font-family: system-ui, sans-serif;
+            line-height: 1.7;
+        }
+        .modal h2 {
+            color: #0af;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .modal p {
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .modal .welcome {
+            color: #fff;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .modal .credit {
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+            color: #888;
+        }
+        .modal .credit a {
+            color: #0af;
+            text-decoration: none;
+        }
+        .modal .credit a:hover { text-decoration: underline; }
+
+        /* Icons in UI */
+        .icon {
+            display: inline-block;
+            width: 16px;
+            text-align: center;
+            margin-right: 4px;
+            font-size: 12px;
+        }
+        .btn-icon {
+            padding: 6px 8px;
+            font-size: 14px;
+            min-width: 32px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="loading">Loading InnerEarth...</div>
+    <div id="city-label"></div>
+
+    <!-- About Modal -->
+    <div class="modal-overlay" id="about-modal">
+        <div class="modal">
+            <h2>About InnerEarth</h2>
+            <p><strong>You've spent your whole life on Earth. Now step inside it.</strong></p>
+            <p>InnerEarth inverts the globe. Instead of gazing down at a spinning marble from some impossible orbital perch, you stand at the center—your center, wherever you are—while the entire planet curves around you like the interior of a vast sphere. Logarithmic scaling lets your street and your hemisphere coexist in the same view, each legible, each connected.</p>
+            <p>This sounds new. It is. And yet.</p>
+            <p>Humans have been dreaming toward this moment for millennia. The Greek agora where all could see and be seen. Boullée's impossible hollow sphere designed to contain the cosmos. Escher's hand holding a mirrored ball that held him back. The curved habitats of science fiction—O'Neill cylinders, Rama, Cooper Station—where the world wraps upward into sky. The cosmic eggs of a dozen creation myths. The planetarium inverted: not stars projected above, but home projected around.</p>
+            <p>InnerEarth is where these streams converge.</p>
+            <p>What you'll feel is double: the thrill of genuine novelty, and the strange recognition of something your imagination has always been reaching for. The unfamiliar will feel familiar. This is not a bug—it's the reason it works.</p>
+            <p>We are not on Earth. We are of it, within it, held by it. InnerEarth makes that truth visible.</p>
+            <p class="welcome">Welcome inside.</p>
+            <p class="credit">Provided by <a href="https://www.globaia.org" target="_blank">GLOBAÏA</a></p>
+        </div>
+    </div>
+
+    <div class="info">
+        <h3>InnerEarth</h3>
+        <div id="location-info">You are inside a perfect sphere</div>
+        <div style="margin-top:8px;color:#666;font-size:10px;">
+            Linear distance mapping
+        </div>
+        <a href="#" id="about-btn" style="margin-top:10px;display:inline-block;font-size:11px;color:#888;">About</a>
+    </div>
+
+    <div class="controls">
+        <h3>Cities</h3>
+        <select id="location-select">
+            <option value="">-- Select City --</option>
+            <optgroup label="Europe">
+                <option value="48.8566,2.3522">Paris, France</option>
+                <option value="51.5074,-0.1278">London, UK</option>
+                <option value="52.52,13.405">Berlin, Germany</option>
+                <option value="41.9028,12.4964">Rome, Italy</option>
+                <option value="40.4168,-3.7038">Madrid, Spain</option>
+                <option value="55.7558,37.6173">Moscow, Russia</option>
+                <option value="59.3293,18.0686">Stockholm, Sweden</option>
+                <option value="48.2082,16.3738">Vienna, Austria</option>
+                <option value="50.0755,14.4378">Prague, Czech Republic</option>
+                <option value="52.3676,4.9041">Amsterdam, Netherlands</option>
+            </optgroup>
+            <optgroup label="North America">
+                <option value="40.7128,-74.006">New York, USA</option>
+                <option value="34.0522,-118.2437">Los Angeles, USA</option>
+                <option value="41.8781,-87.6298">Chicago, USA</option>
+                <option value="37.7749,-122.4194">San Francisco, USA</option>
+                <option value="25.7617,-80.1918">Miami, USA</option>
+                <option value="43.6532,-79.3832">Toronto, Canada</option>
+                <option value="45.5017,-73.5673">Montreal, Canada</option>
+                <option value="19.4326,-99.1332">Mexico City, Mexico</option>
+            </optgroup>
+            <optgroup label="South America">
+                <option value="-23.5505,-46.6333">São Paulo, Brazil</option>
+                <option value="-22.9068,-43.1729">Rio de Janeiro, Brazil</option>
+                <option value="-34.6037,-58.3816">Buenos Aires, Argentina</option>
+                <option value="-33.4489,-70.6693">Santiago, Chile</option>
+                <option value="-12.0464,-77.0428">Lima, Peru</option>
+                <option value="4.711,-74.0721">Bogotá, Colombia</option>
+            </optgroup>
+            <optgroup label="Asia">
+                <option value="35.6762,139.6503">Tokyo, Japan</option>
+                <option value="37.5665,126.978">Seoul, South Korea</option>
+                <option value="31.2304,121.4737">Shanghai, China</option>
+                <option value="39.9042,116.4074">Beijing, China</option>
+                <option value="22.3193,114.1694">Hong Kong</option>
+                <option value="1.3521,103.8198">Singapore</option>
+                <option value="13.7563,100.5018">Bangkok, Thailand</option>
+                <option value="28.6139,77.209">New Delhi, India</option>
+                <option value="19.076,72.8777">Mumbai, India</option>
+                <option value="25.2048,55.2708">Dubai, UAE</option>
+                <option value="41.0082,28.9784">Istanbul, Turkey</option>
+            </optgroup>
+            <optgroup label="Africa">
+                <option value="-33.9249,18.4241">Cape Town, South Africa</option>
+                <option value="-26.2041,28.0473">Johannesburg, South Africa</option>
+                <option value="30.0444,31.2357">Cairo, Egypt</option>
+                <option value="-1.2921,36.8219">Nairobi, Kenya</option>
+                <option value="6.5244,3.3792">Lagos, Nigeria</option>
+                <option value="33.5731,-7.5898">Casablanca, Morocco</option>
+            </optgroup>
+            <optgroup label="Oceania">
+                <option value="-33.8688,151.2093">Sydney, Australia</option>
+                <option value="-37.8136,144.9631">Melbourne, Australia</option>
+                <option value="-36.8485,174.7633">Auckland, New Zealand</option>
+                <option value="-41.2865,174.7762">Wellington, New Zealand</option>
+            </optgroup>
+            <optgroup label="Special Locations">
+                <option value="90,0">North Pole</option>
+                <option value="-90,0">South Pole</option>
+                <option value="0,0">Null Island (0°,0°)</option>
+                <option value="27.9881,86.925">Mount Everest</option>
+                <option value="21.4225,-157.9519">Honolulu, Hawaii</option>
+                <option value="-17.7134,178.065">Fiji</option>
+            </optgroup>
+        </select>
+        <div style="margin-top:6px;">
+            <button class="btn-secondary" id="locate">My Location</button>
+        </div>
+
+        <h4>Altitude</h4>
+        <label>Altitude: <span id="altitude-display">0 m</span></label>
+        <input type="range" id="altitude-slider" min="0" max="100" value="0">
+        <div style="font-size:10px;color:#666;">0 = surface | 100 = center</div>
+
+        <h4>Display</h4>
+        <div class="checkbox-row">
+            <input type="checkbox" id="satellite-toggle">
+            <label for="satellite-toggle" style="margin:0;color:#aaa;">Satellite imagery</label>
+        </div>
+        <input type="range" id="opacity-satellite" class="opacity-slider" min="0" max="100" value="90">
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="geo-grid-toggle" checked>
+            <label for="geo-grid-toggle" style="margin:0;color:#aaa;">Geographic grid</label>
+        </div>
+        <input type="range" id="opacity-geogrid" class="opacity-slider" min="0" max="100" value="100">
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="subjective-grid-toggle">
+            <label for="subjective-grid-toggle" style="margin:0;color:#aaa;">Subjective grid</label>
+        </div>
+        <input type="range" id="opacity-subjgrid" class="opacity-slider" min="0" max="100" value="100">
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="cities-toggle" checked>
+            <label for="cities-toggle" style="margin:0;color:#aaa;">Major cities</label>
+        </div>
+        <input type="range" id="opacity-cities" class="opacity-slider" min="0" max="100" value="100">
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="home-marker-toggle" checked>
+            <label for="home-marker-toggle" style="margin:0;color:#aaa;">Home marker</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="daynight-toggle">
+            <label for="daynight-toggle" style="margin:0;color:#aaa;">Day/Night</label>
+        </div>
+        <input type="range" id="opacity-daynight" class="opacity-slider" min="0" max="100" value="50">
+        <div id="daynight-controls" style="display:none;margin-left:20px;margin-top:4px;">
+            <label style="font-size:10px;color:#666;">Time offset: <span id="time-offset-display">0</span>h</label>
+            <input type="range" id="time-offset-slider" min="-12" max="12" value="0" step="0.5" style="width:100%;">
+            <button class="btn-secondary" id="daynight-now" style="font-size:10px;padding:3px 8px;margin-top:4px;">Now</button>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="coastlines-toggle" checked>
+            <label for="coastlines-toggle" style="margin:0;color:#aaa;">Coastlines</label>
+            <select id="coastline-resolution" style="margin-left:auto;font-size:10px;padding:2px;background:#333;border:1px solid #555;color:#aaa;border-radius:3px;">
+                <option value="110m">110m</option>
+                <option value="50m" selected>50m</option>
+                <option value="10m">10m</option>
+            </select>
+        </div>
+        <input type="range" id="opacity-coastlines" class="opacity-slider" min="0" max="100" value="100">
+
+        <button class="btn-secondary" id="set-default-btn" style="margin-top:10px;width:100%;">Set Default View</button>
+
+        <h4>Great Circle</h4>
+        <div class="checkbox-row">
+            <input type="checkbox" id="greatcircle-toggle">
+            <label for="greatcircle-toggle" style="margin:0;color:#aaa;">Show connections</label>
+        </div>
+        <div id="greatcircle-controls" style="margin-top:6px;">
+            <label style="font-size:10px;color:#666;">Connect to city:</label>
+            <div class="autocomplete-container">
+                <input type="text" id="gc-city-input" placeholder="Type city name..." style="width:100%;">
+                <div class="autocomplete-results" id="gc-autocomplete"></div>
+            </div>
+            <div style="margin-top:6px;">
+                <button class="btn-primary" id="gc-connect" style="font-size:10px;padding:4px 8px;">Connect</button>
+                <button class="btn-secondary" id="gc-clear" style="font-size:10px;padding:4px 8px;">Clear</button>
+            </div>
+            <div id="gc-distance" style="margin-top:6px;font-size:11px;color:#0af;display:none;"></div>
+            <div class="connection-list" id="gc-connections"></div>
+        </div>
+    </div>
+
+    <div class="help">
+        <strong>Drag</strong> to look around •
+        <strong>Click city</strong> to travel •
+        <strong>WASD/Arrows</strong> to walk (ground level)
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        // === Configuration ===
+        let nadir = { lat: 48.8566, lon: 2.3522 };
+        let homeLocation = { lat: 48.8566, lon: 2.3522 };  // Stored home location
+        const SPHERE_RADIUS = 500;
+
+        // === Major Cities Data ===
+        const MAJOR_CITIES = [
+            { name: "Paris", lat: 48.8566, lon: 2.3522 },
+            { name: "London", lat: 51.5074, lon: -0.1278 },
+            { name: "Berlin", lat: 52.52, lon: 13.405 },
+            { name: "Rome", lat: 41.9028, lon: 12.4964 },
+            { name: "Madrid", lat: 40.4168, lon: -3.7038 },
+            { name: "Moscow", lat: 55.7558, lon: 37.6173 },
+            { name: "New York", lat: 40.7128, lon: -74.006 },
+            { name: "Los Angeles", lat: 34.0522, lon: -118.2437 },
+            { name: "Chicago", lat: 41.8781, lon: -87.6298 },
+            { name: "Toronto", lat: 43.6532, lon: -79.3832 },
+            { name: "Mexico City", lat: 19.4326, lon: -99.1332 },
+            { name: "São Paulo", lat: -23.5505, lon: -46.6333 },
+            { name: "Buenos Aires", lat: -34.6037, lon: -58.3816 },
+            { name: "Tokyo", lat: 35.6762, lon: 139.6503 },
+            { name: "Seoul", lat: 37.5665, lon: 126.978 },
+            { name: "Shanghai", lat: 31.2304, lon: 121.4737 },
+            { name: "Beijing", lat: 39.9042, lon: 116.4074 },
+            { name: "Hong Kong", lat: 22.3193, lon: 114.1694 },
+            { name: "Singapore", lat: 1.3521, lon: 103.8198 },
+            { name: "Bangkok", lat: 13.7563, lon: 100.5018 },
+            { name: "Mumbai", lat: 19.076, lon: 72.8777 },
+            { name: "Dubai", lat: 25.2048, lon: 55.2708 },
+            { name: "Istanbul", lat: 41.0082, lon: 28.9784 },
+            { name: "Cairo", lat: 30.0444, lon: 31.2357 },
+            { name: "Cape Town", lat: -33.9249, lon: 18.4241 },
+            { name: "Lagos", lat: 6.5244, lon: 3.3792 },
+            { name: "Sydney", lat: -33.8688, lon: 151.2093 },
+            { name: "Melbourne", lat: -37.8136, lon: 144.9631 },
+            { name: "Auckland", lat: -36.8485, lon: 174.7633 },
+        ];
+
+        // === World Cities Database (for autocomplete) ===
+        const WORLD_CITIES = [
+            // Europe
+            { name: "Paris", country: "France", lat: 48.8566, lon: 2.3522 },
+            { name: "London", country: "UK", lat: 51.5074, lon: -0.1278 },
+            { name: "Berlin", country: "Germany", lat: 52.52, lon: 13.405 },
+            { name: "Rome", country: "Italy", lat: 41.9028, lon: 12.4964 },
+            { name: "Madrid", country: "Spain", lat: 40.4168, lon: -3.7038 },
+            { name: "Moscow", country: "Russia", lat: 55.7558, lon: 37.6173 },
+            { name: "Stockholm", country: "Sweden", lat: 59.3293, lon: 18.0686 },
+            { name: "Vienna", country: "Austria", lat: 48.2082, lon: 16.3738 },
+            { name: "Prague", country: "Czech Republic", lat: 50.0755, lon: 14.4378 },
+            { name: "Amsterdam", country: "Netherlands", lat: 52.3676, lon: 4.9041 },
+            { name: "Brussels", country: "Belgium", lat: 50.8503, lon: 4.3517 },
+            { name: "Lisbon", country: "Portugal", lat: 38.7223, lon: -9.1393 },
+            { name: "Dublin", country: "Ireland", lat: 53.3498, lon: -6.2603 },
+            { name: "Warsaw", country: "Poland", lat: 52.2297, lon: 21.0122 },
+            { name: "Budapest", country: "Hungary", lat: 47.4979, lon: 19.0402 },
+            { name: "Athens", country: "Greece", lat: 37.9838, lon: 23.7275 },
+            { name: "Zurich", country: "Switzerland", lat: 47.3769, lon: 8.5417 },
+            { name: "Geneva", country: "Switzerland", lat: 46.2044, lon: 6.1432 },
+            { name: "Copenhagen", country: "Denmark", lat: 55.6761, lon: 12.5683 },
+            { name: "Oslo", country: "Norway", lat: 59.9139, lon: 10.7522 },
+            { name: "Helsinki", country: "Finland", lat: 60.1699, lon: 24.9384 },
+            { name: "Milan", country: "Italy", lat: 45.4642, lon: 9.19 },
+            { name: "Barcelona", country: "Spain", lat: 41.3851, lon: 2.1734 },
+            { name: "Munich", country: "Germany", lat: 48.1351, lon: 11.582 },
+            { name: "Edinburgh", country: "UK", lat: 55.9533, lon: -3.1883 },
+            { name: "Reykjavik", country: "Iceland", lat: 64.1466, lon: -21.9426 },
+            { name: "Kiev", country: "Ukraine", lat: 50.4501, lon: 30.5234 },
+            { name: "Bucharest", country: "Romania", lat: 44.4268, lon: 26.1025 },
+            { name: "Belgrade", country: "Serbia", lat: 44.7866, lon: 20.4489 },
+            // North America
+            { name: "New York", country: "USA", lat: 40.7128, lon: -74.006 },
+            { name: "Los Angeles", country: "USA", lat: 34.0522, lon: -118.2437 },
+            { name: "Chicago", country: "USA", lat: 41.8781, lon: -87.6298 },
+            { name: "San Francisco", country: "USA", lat: 37.7749, lon: -122.4194 },
+            { name: "Miami", country: "USA", lat: 25.7617, lon: -80.1918 },
+            { name: "Toronto", country: "Canada", lat: 43.6532, lon: -79.3832 },
+            { name: "Montreal", country: "Canada", lat: 45.5017, lon: -73.5673 },
+            { name: "Mexico City", country: "Mexico", lat: 19.4326, lon: -99.1332 },
+            { name: "Vancouver", country: "Canada", lat: 49.2827, lon: -123.1207 },
+            { name: "Seattle", country: "USA", lat: 47.6062, lon: -122.3321 },
+            { name: "Boston", country: "USA", lat: 42.3601, lon: -71.0589 },
+            { name: "Washington DC", country: "USA", lat: 38.9072, lon: -77.0369 },
+            { name: "Houston", country: "USA", lat: 29.7604, lon: -95.3698 },
+            { name: "Dallas", country: "USA", lat: 32.7767, lon: -96.797 },
+            { name: "Phoenix", country: "USA", lat: 33.4484, lon: -112.074 },
+            { name: "Denver", country: "USA", lat: 39.7392, lon: -104.9903 },
+            { name: "Atlanta", country: "USA", lat: 33.749, lon: -84.388 },
+            { name: "Las Vegas", country: "USA", lat: 36.1699, lon: -115.1398 },
+            { name: "Honolulu", country: "USA", lat: 21.3069, lon: -157.8583 },
+            { name: "Anchorage", country: "USA", lat: 61.2181, lon: -149.9003 },
+            { name: "Havana", country: "Cuba", lat: 23.1136, lon: -82.3666 },
+            { name: "Cancun", country: "Mexico", lat: 21.1619, lon: -86.8515 },
+            { name: "Guatemala City", country: "Guatemala", lat: 14.6349, lon: -90.5069 },
+            { name: "Panama City", country: "Panama", lat: 8.9824, lon: -79.5199 },
+            // South America
+            { name: "São Paulo", country: "Brazil", lat: -23.5505, lon: -46.6333 },
+            { name: "Rio de Janeiro", country: "Brazil", lat: -22.9068, lon: -43.1729 },
+            { name: "Buenos Aires", country: "Argentina", lat: -34.6037, lon: -58.3816 },
+            { name: "Santiago", country: "Chile", lat: -33.4489, lon: -70.6693 },
+            { name: "Lima", country: "Peru", lat: -12.0464, lon: -77.0428 },
+            { name: "Bogotá", country: "Colombia", lat: 4.711, lon: -74.0721 },
+            { name: "Caracas", country: "Venezuela", lat: 10.4806, lon: -66.9036 },
+            { name: "Quito", country: "Ecuador", lat: -0.1807, lon: -78.4678 },
+            { name: "Montevideo", country: "Uruguay", lat: -34.9011, lon: -56.1645 },
+            { name: "La Paz", country: "Bolivia", lat: -16.4897, lon: -68.1193 },
+            { name: "Brasilia", country: "Brazil", lat: -15.7975, lon: -47.8919 },
+            { name: "Medellín", country: "Colombia", lat: 6.2476, lon: -75.5658 },
+            { name: "Cusco", country: "Peru", lat: -13.532, lon: -71.9675 },
+            // Asia
+            { name: "Tokyo", country: "Japan", lat: 35.6762, lon: 139.6503 },
+            { name: "Seoul", country: "South Korea", lat: 37.5665, lon: 126.978 },
+            { name: "Shanghai", country: "China", lat: 31.2304, lon: 121.4737 },
+            { name: "Beijing", country: "China", lat: 39.9042, lon: 116.4074 },
+            { name: "Hong Kong", country: "China", lat: 22.3193, lon: 114.1694 },
+            { name: "Singapore", country: "Singapore", lat: 1.3521, lon: 103.8198 },
+            { name: "Bangkok", country: "Thailand", lat: 13.7563, lon: 100.5018 },
+            { name: "New Delhi", country: "India", lat: 28.6139, lon: 77.209 },
+            { name: "Mumbai", country: "India", lat: 19.076, lon: 72.8777 },
+            { name: "Dubai", country: "UAE", lat: 25.2048, lon: 55.2708 },
+            { name: "Istanbul", country: "Turkey", lat: 41.0082, lon: 28.9784 },
+            { name: "Taipei", country: "Taiwan", lat: 25.033, lon: 121.5654 },
+            { name: "Osaka", country: "Japan", lat: 34.6937, lon: 135.5023 },
+            { name: "Kuala Lumpur", country: "Malaysia", lat: 3.139, lon: 101.6869 },
+            { name: "Jakarta", country: "Indonesia", lat: -6.2088, lon: 106.8456 },
+            { name: "Manila", country: "Philippines", lat: 14.5995, lon: 120.9842 },
+            { name: "Ho Chi Minh City", country: "Vietnam", lat: 10.8231, lon: 106.6297 },
+            { name: "Hanoi", country: "Vietnam", lat: 21.0278, lon: 105.8342 },
+            { name: "Kolkata", country: "India", lat: 22.5726, lon: 88.3639 },
+            { name: "Chennai", country: "India", lat: 13.0827, lon: 80.2707 },
+            { name: "Bangalore", country: "India", lat: 12.9716, lon: 77.5946 },
+            { name: "Karachi", country: "Pakistan", lat: 24.8607, lon: 67.0011 },
+            { name: "Lahore", country: "Pakistan", lat: 31.5204, lon: 74.3587 },
+            { name: "Dhaka", country: "Bangladesh", lat: 23.8103, lon: 90.4125 },
+            { name: "Kathmandu", country: "Nepal", lat: 27.7172, lon: 85.324 },
+            { name: "Colombo", country: "Sri Lanka", lat: 6.9271, lon: 79.8612 },
+            { name: "Tel Aviv", country: "Israel", lat: 32.0853, lon: 34.7818 },
+            { name: "Jerusalem", country: "Israel", lat: 31.7683, lon: 35.2137 },
+            { name: "Riyadh", country: "Saudi Arabia", lat: 24.7136, lon: 46.6753 },
+            { name: "Tehran", country: "Iran", lat: 35.6892, lon: 51.389 },
+            { name: "Doha", country: "Qatar", lat: 25.2854, lon: 51.531 },
+            { name: "Abu Dhabi", country: "UAE", lat: 24.4539, lon: 54.3773 },
+            { name: "Almaty", country: "Kazakhstan", lat: 43.2551, lon: 76.9126 },
+            { name: "Tashkent", country: "Uzbekistan", lat: 41.2995, lon: 69.2401 },
+            { name: "Ulaanbaatar", country: "Mongolia", lat: 47.8864, lon: 106.9057 },
+            // Africa
+            { name: "Cairo", country: "Egypt", lat: 30.0444, lon: 31.2357 },
+            { name: "Cape Town", country: "South Africa", lat: -33.9249, lon: 18.4241 },
+            { name: "Johannesburg", country: "South Africa", lat: -26.2041, lon: 28.0473 },
+            { name: "Nairobi", country: "Kenya", lat: -1.2921, lon: 36.8219 },
+            { name: "Lagos", country: "Nigeria", lat: 6.5244, lon: 3.3792 },
+            { name: "Casablanca", country: "Morocco", lat: 33.5731, lon: -7.5898 },
+            { name: "Marrakech", country: "Morocco", lat: 31.6295, lon: -7.9811 },
+            { name: "Tunis", country: "Tunisia", lat: 36.8065, lon: 10.1815 },
+            { name: "Algiers", country: "Algeria", lat: 36.7538, lon: 3.0588 },
+            { name: "Addis Ababa", country: "Ethiopia", lat: 9.0054, lon: 38.7636 },
+            { name: "Dar es Salaam", country: "Tanzania", lat: -6.7924, lon: 39.2083 },
+            { name: "Accra", country: "Ghana", lat: 5.6037, lon: -0.187 },
+            { name: "Dakar", country: "Senegal", lat: 14.7167, lon: -17.4677 },
+            { name: "Kinshasa", country: "DR Congo", lat: -4.4419, lon: 15.2663 },
+            { name: "Luanda", country: "Angola", lat: -8.839, lon: 13.2894 },
+            { name: "Abidjan", country: "Ivory Coast", lat: 5.36, lon: -4.0083 },
+            // Oceania
+            { name: "Sydney", country: "Australia", lat: -33.8688, lon: 151.2093 },
+            { name: "Melbourne", country: "Australia", lat: -37.8136, lon: 144.9631 },
+            { name: "Auckland", country: "New Zealand", lat: -36.8485, lon: 174.7633 },
+            { name: "Wellington", country: "New Zealand", lat: -41.2865, lon: 174.7762 },
+            { name: "Brisbane", country: "Australia", lat: -27.4698, lon: 153.0251 },
+            { name: "Perth", country: "Australia", lat: -31.9505, lon: 115.8605 },
+            { name: "Adelaide", country: "Australia", lat: -34.9285, lon: 138.6007 },
+            { name: "Fiji", country: "Fiji", lat: -17.7134, lon: 178.065 },
+            { name: "Tahiti", country: "French Polynesia", lat: -17.6509, lon: -149.426 },
+            // Special
+            { name: "North Pole", country: "Arctic", lat: 90, lon: 0 },
+            { name: "South Pole", country: "Antarctica", lat: -90, lon: 0 },
+            { name: "Mount Everest", country: "Nepal/China", lat: 27.9881, lon: 86.925 },
+        ];
+
+        // === Great Circle State ===
+        let showGreatCircles = true;
+        let greatCircleConnections = [];  // [{dest: {name, country, lat, lon}, line: THREE.Line, distKm: number}]
+        let greatCircleGroup = null;
+        let selectedCity = null;
+        let gcAnimations = [];  // Active line animations
+
+        // === Three.js Setup ===
+        const container = document.getElementById('container');
+        const loading = document.getElementById('loading');
+        const cityLabel = document.getElementById('city-label');
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+
+        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.001, 2000);
+        // Start very close to surface (0.001 units ≈ 12m at Earth scale)
+        const SURFACE_RADIUS = SPHERE_RADIUS * 0.999;  // Where content is rendered
+        camera.position.set(0, -SURFACE_RADIUS + 0.001, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        // === Math Utilities ===
+        const DEG2RAD = Math.PI / 180;
+        const RAD2DEG = 180 / Math.PI;
+
+        function angularDistance(lat1, lon1, lat2, lon2) {
+            const φ1 = lat1 * DEG2RAD, φ2 = lat2 * DEG2RAD;
+            const Δφ = (lat2 - lat1) * DEG2RAD, Δλ = (lon2 - lon1) * DEG2RAD;
+            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
+            return 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * RAD2DEG;
+        }
+
+        function azimuth(lat1, lon1, lat2, lon2) {
+            const φ1 = lat1 * DEG2RAD, φ2 = lat2 * DEG2RAD;
+            const Δλ = (lon2 - lon1) * DEG2RAD;
+            const y = Math.sin(Δλ) * Math.cos(φ2);
+            const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+            return Math.atan2(y, x);
+        }
+
+        // Perfect sphere transformation (linear, no CSLV)
+        function distanceToSphere(distanceDeg, azimuthRad) {
+            const t = Math.min(1, Math.max(0, distanceDeg / 180));
+            const phi = t * Math.PI;
+            const r = SPHERE_RADIUS * 0.999;
+            const y = -r * Math.cos(phi);
+            const ringRadius = r * Math.sin(phi);
+            const x = ringRadius * Math.sin(-azimuthRad);
+            const z = ringRadius * Math.cos(-azimuthRad);
+            return new THREE.Vector3(x, y, z);
+        }
+
+        function geoToSphere(lat, lon) {
+            const dist = angularDistance(nadir.lat, nadir.lon, lat, lon);
+            const az = azimuth(nadir.lat, nadir.lon, lat, lon);
+            return distanceToSphere(dist, az);
+        }
+
+        // === Animation System ===
+        let animationTarget = null;
+        let animationStart = null;
+        const animationDuration = 1500;
+
+        function animateToLocation(targetLat, targetLon) {
+            animationStart = { lat: nadir.lat, lon: nadir.lon, time: performance.now() };
+            animationTarget = { lat: targetLat, lon: targetLon };
+        }
+
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function lerpLon(from, to, t) {
+            let diff = to - from;
+            if (diff > 180) diff -= 360;
+            if (diff < -180) diff += 360;
+            let result = from + diff * t;
+            if (result > 180) result -= 360;
+            if (result < -180) result += 360;
+            return result;
+        }
+
+        function updateAnimation() {
+            if (!animationTarget || !animationStart) return;
+            const elapsed = performance.now() - animationStart.time;
+            const progress = Math.min(1, elapsed / animationDuration);
+            const t = easeInOutCubic(progress);
+
+            nadir.lat = animationStart.lat + (animationTarget.lat - animationStart.lat) * t;
+            nadir.lon = lerpLon(animationStart.lon, animationTarget.lon, t);
+
+            rebuildAll();
+            updateInfo();
+
+            if (progress >= 1) {
+                animationTarget = null;
+                animationStart = null;
+            }
+        }
+
+        // === Constants ===
+        const EARTH_RADIUS_KM = 6371;
+
+        // === Display Options ===
+        let showGeoGrid = true;
+        let showSubjectiveGrid = false;
+        let showCities = true;
+        let showHomeMarker = true;
+        let showCoastlines = true;
+        let coastlineResolution = '50m';
+        let showDayNight = false;
+        let timeOffsetHours = 0;
+        let showLabels = false;
+
+        // === Content Groups ===
+        let sphereGroup, geoGridGroup, subjectiveGridGroup, citiesGroup, homeMarkerMesh, antipodeMarkerMesh;
+        let labelsGroup = null;
+        let satelliteSphere = null, satelliteVisible = false, satelliteTexture = null;
+        let dayNightSphere = null;
+
+        // === Sun Position Calculation (simplified astronomical calculation) ===
+        function getSunPosition(date) {
+            // Calculate solar declination and hour angle for sun position
+            const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+
+            // Solar declination (approximate)
+            const declination = -23.45 * Math.cos(2 * Math.PI * (dayOfYear + 10) / 365);
+
+            // Hour angle based on UTC time
+            const hours = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+            // Sun is at longitude 0° at 12:00 UTC, moves 15° per hour westward
+            const sunLon = (12 - hours) * 15;
+
+            return {
+                lat: declination,
+                lon: sunLon > 180 ? sunLon - 360 : (sunLon < -180 ? sunLon + 360 : sunLon)
+            };
+        }
+
+        // === Day/Night Sphere (outer sphere with gradient terminator) ===
+        function createDayNightSphere() {
+            if (dayNightSphere) {
+                scene.remove(dayNightSphere);
+                dayNightSphere.geometry?.dispose();
+                dayNightSphere.material?.dispose();
+            }
+
+            if (!showDayNight) return;
+
+            // Get current sun position
+            const now = new Date();
+            now.setTime(now.getTime() + timeOffsetHours * 3600000);
+            const sunPos = getSunPosition(now);
+
+            // Create sphere geometry with vertex colors
+            const latSegs = 60, lonSegs = 120;
+            const positions = [];
+            const colors = [];
+            const indices = [];
+
+            // Day color (warm orange) - vibrant for additive blending
+            const dayColor = new THREE.Color(0x442200);  // Warm orange
+            // Night color (cool blue) - vibrant for additive blending
+            const nightColor = new THREE.Color(0x0a1540);  // Deep blue
+
+            for (let i = 0; i <= latSegs; i++) {
+                const lat = -90 + (180 * i / latSegs);
+                for (let j = 0; j <= lonSegs; j++) {
+                    const lon = -180 + (360 * j / lonSegs);
+
+                    // Position at same size as vectors (blending handles overlap)
+                    const pos = geoToSphere(lat, lon);
+                    positions.push(pos.x, pos.y, pos.z);
+
+                    // Calculate angular distance from subsolar point
+                    const dist = angularDistance(sunPos.lat, sunPos.lon, lat, lon);
+
+                    // Gradient at terminator: day (0-85°), terminator (85-95°), night (95-180°)
+                    let t;
+                    if (dist < 85) {
+                        t = 1.0;  // Full day
+                    } else if (dist > 95) {
+                        t = 0.0;  // Full night
+                    } else {
+                        // Smooth gradient through terminator
+                        t = 1.0 - (dist - 85) / 10;
+                        t = t * t * (3 - 2 * t);  // Smoothstep
+                    }
+
+                    // Interpolate color
+                    const color = nightColor.clone().lerp(dayColor, t);
+                    colors.push(color.r, color.g, color.b);
+                }
+            }
+
+            // Create indices for triangles
+            for (let i = 0; i < latSegs; i++) {
+                for (let j = 0; j < lonSegs; j++) {
+                    const a = i * (lonSegs + 1) + j;
+                    indices.push(a, a + lonSegs + 1, a + 1);
+                    indices.push(a + 1, a + lonSegs + 1, a + lonSegs + 2);
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            geo.setIndex(indices);
+
+            const mat = new THREE.MeshBasicMaterial({
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.BackSide,  // Render inside of sphere (we're inside looking out)
+                depthWrite: false,     // Don't write to depth buffer - prevents z-fighting
+                blending: THREE.AdditiveBlending  // Additive blending for cleaner overlay
+            });
+
+            dayNightSphere = new THREE.Mesh(geo, mat);
+            scene.add(dayNightSphere);
+        }
+
+        function updateDayNight() {
+            if (showDayNight) {
+                createDayNightSphere();
+            }
+        }
+
+        // === Satellite ===
+        function loadSatelliteTexture() {
+            const loader = new THREE.TextureLoader();
+            satelliteTexture = loader.load(
+                'assets/earth/earth_4k.jpg',
+                () => console.log('Satellite texture loaded (4K)')
+            );
+        }
+
+        function createSatelliteMesh() {
+            if (satelliteSphere) {
+                scene.remove(satelliteSphere);
+                satelliteSphere.geometry?.dispose();
+                satelliteSphere.material?.dispose();
+            }
+
+            const latSegs = 90, lonSegs = 180;
+            const verts = [], uvs = [], indices = [];
+
+            // Create sphere at same size as vector grid (blending handles overlap)
+            const SATELLITE_SCALE = 1.0;  // Same size as vectors
+
+            for (let i = 0; i <= latSegs; i++) {
+                const lat = -90 + (180 * i / latSegs);
+                for (let j = 0; j <= lonSegs; j++) {
+                    const lon = -180 + (360 * j / lonSegs);
+                    const pos = geoToSphere(lat, lon);
+                    // Scale outward to be outside vector grid
+                    verts.push(pos.x * SATELLITE_SCALE, pos.y * SATELLITE_SCALE, pos.z * SATELLITE_SCALE);
+                    uvs.push(j / lonSegs, i / latSegs);
+                }
+            }
+
+            for (let i = 0; i < latSegs; i++) {
+                for (let j = 0; j < lonSegs; j++) {
+                    const a = i * (lonSegs + 1) + j;
+                    indices.push(a, a + lonSegs + 1, a + 1, a + 1, a + lonSegs + 1, a + lonSegs + 2);
+                }
+            }
+
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+            geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            geo.setIndex(indices);
+            geo.computeVertexNormals();
+
+            satelliteSphere = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+                map: satelliteTexture,
+                side: THREE.BackSide,  // Render inside face since we're inside the sphere
+                transparent: true,
+                opacity: opacityValues.satellite,
+                depthWrite: false,  // Prevent z-fighting with other elements
+                blending: THREE.AdditiveBlending  // Blend with vectors
+            }));
+            satelliteSphere.visible = satelliteVisible;
+            scene.add(satelliteSphere);
+        }
+
+        // === Home Marker (Red House) - uses sprite for constant screen size ===
+        function createHomeMarker() {
+            if (homeMarkerMesh) {
+                scene.remove(homeMarkerMesh);
+                homeMarkerMesh.material?.map?.dispose();
+                homeMarkerMesh.material?.dispose();
+            }
+
+            // Create a canvas with house icon
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+
+            // Draw house shape
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath();
+            ctx.moveTo(32, 8);   // Roof peak
+            ctx.lineTo(56, 28);  // Roof right
+            ctx.lineTo(48, 28);  // Wall right top
+            ctx.lineTo(48, 56);  // Wall right bottom
+            ctx.lineTo(16, 56);  // Wall left bottom
+            ctx.lineTo(16, 28);  // Wall left top
+            ctx.lineTo(8, 28);   // Roof left
+            ctx.closePath();
+            ctx.fill();
+
+            // Add border
+            ctx.strokeStyle = '#aa0000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                sizeAttenuation: false  // Constant screen size!
+            });
+
+            homeMarkerMesh = new THREE.Sprite(mat);
+            homeMarkerMesh.scale.set(0.04, 0.04, 1);  // Screen-space size
+
+            // Position at nadir - OUTSIDE the sphere (below the camera)
+            const pos = geoToSphere(nadir.lat, nadir.lon);
+            homeMarkerMesh.position.copy(pos).multiplyScalar(1.002);  // Slightly outside surface
+
+            homeMarkerMesh.visible = showHomeMarker;
+            scene.add(homeMarkerMesh);
+
+            // Create antipode marker
+            createAntipodeMarker();
+        }
+
+        function createAntipodeMarker() {
+            if (antipodeMarkerMesh) {
+                scene.remove(antipodeMarkerMesh);
+                antipodeMarkerMesh.material?.map?.dispose();
+                antipodeMarkerMesh.material?.dispose();
+            }
+
+            // Calculate antipode coordinates
+            const antipodeLat = -nadir.lat;
+            const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
+
+            // Create a canvas with red dot
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+
+            // Draw red dot
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(16, 16, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#aa0000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                sizeAttenuation: false  // Constant screen size!
+            });
+
+            antipodeMarkerMesh = new THREE.Sprite(mat);
+            antipodeMarkerMesh.scale.set(0.015, 0.015, 1);  // Small red dot
+
+            // Position at antipode (zenith) - OUTSIDE the sphere
+            const pos = geoToSphere(antipodeLat, antipodeLon);
+            antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);  // Slightly outside surface
+
+            antipodeMarkerMesh.visible = showHomeMarker;
+            scene.add(antipodeMarkerMesh);
+        }
+
+        // === Subjective Grid (You = South Pole, Antipode = North Pole) ===
+        function createSubjectiveGrid() {
+            if (subjectiveGridGroup) {
+                scene.remove(subjectiveGridGroup);
+                subjectiveGridGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+            }
+
+            subjectiveGridGroup = new THREE.Group();
+
+            // Distance circles from nadir (like latitude lines, but centered on you)
+            const distances = [15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165];
+            distances.forEach(dist => {
+                const points = [];
+                for (let az = 0; az <= 360; az += 3) {
+                    points.push(distanceToSphere(dist, az * DEG2RAD));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineBasicMaterial({
+                    color: dist === 90 ? 0xff00ff : 0xff6600,
+                    transparent: true,
+                    opacity: dist === 90 ? 0.8 : 0.4,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                subjectiveGridGroup.add(new THREE.LineLoop(geo, mat));
+            });
+
+            // Azimuth lines (like longitude lines radiating from you)
+            for (let az = 0; az < 360; az += 30) {
+                const points = [];
+                for (let dist = 0; dist <= 180; dist += 3) {
+                    points.push(distanceToSphere(dist, az * DEG2RAD));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineBasicMaterial({
+                    color: az === 0 ? 0xff0000 : 0xff6600,
+                    transparent: true,
+                    opacity: az % 90 === 0 ? 0.6 : 0.3,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                subjectiveGridGroup.add(new THREE.Line(geo, mat));
+            }
+
+            subjectiveGridGroup.visible = showSubjectiveGrid;
+            scene.add(subjectiveGridGroup);
+        }
+
+        // === Cities (using sprites for constant screen size) ===
+        let citySpriteMaterial = null;
+
+        function createCityTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+
+            // Draw yellow dot with dark border
+            ctx.fillStyle = '#ffdd00';
+            ctx.beginPath();
+            ctx.arc(16, 16, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#aa8800';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createCities() {
+            if (citiesGroup) {
+                scene.remove(citiesGroup);
+                citiesGroup.traverse(o => {
+                    o.material?.map?.dispose();
+                    o.material?.dispose();
+                });
+            }
+
+            citiesGroup = new THREE.Group();
+
+            // Create shared texture for all cities
+            const texture = createCityTexture();
+
+            MAJOR_CITIES.forEach(city => {
+                const mat = new THREE.SpriteMaterial({
+                    map: texture,
+                    transparent: true,
+                    sizeAttenuation: false  // Constant screen size!
+                });
+
+                const sprite = new THREE.Sprite(mat);
+                sprite.scale.set(0.012, 0.012, 1);  // Smaller city dots
+
+                const pos = geoToSphere(city.lat, city.lon);
+                sprite.position.copy(pos);  // Exactly at ground level
+                sprite.userData = { city: city.name, lat: city.lat, lon: city.lon };
+
+                citiesGroup.add(sprite);
+            });
+
+            citiesGroup.visible = showCities;
+            scene.add(citiesGroup);
+        }
+
+        // === Text Labels (cities, home, antipode) ===
+        function createTextSprite(text, fontSize = 24) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Measure text to size canvas appropriately
+            ctx.font = `${fontSize}px Arial, sans-serif`;
+            const metrics = ctx.measureText(text);
+            const textWidth = metrics.width;
+
+            canvas.width = Math.ceil(textWidth) + 16;
+            canvas.height = fontSize + 12;
+
+            // Draw text with dark outline for visibility on any background
+            ctx.font = `${fontSize}px Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Dark outline/shadow for visibility on satellite
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = 3;
+            ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+
+            // White fill
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                sizeAttenuation: false
+            });
+
+            const sprite = new THREE.Sprite(mat);
+            // Scale based on canvas aspect ratio - smaller size
+            const aspect = canvas.width / canvas.height;
+            sprite.scale.set(0.02 * aspect, 0.02, 1);
+
+            return sprite;
+        }
+
+        function createLabels() {
+            if (labelsGroup) {
+                scene.remove(labelsGroup);
+                labelsGroup.traverse(o => {
+                    o.material?.map?.dispose();
+                    o.material?.dispose();
+                });
+            }
+
+            labelsGroup = new THREE.Group();
+
+            // Home label
+            const homeLabel = createTextSprite('Home', 28);
+            const homePos = geoToSphere(nadir.lat, nadir.lon);
+            homeLabel.position.copy(homePos).multiplyScalar(1.015);
+            labelsGroup.add(homeLabel);
+
+            // Antipode label
+            const antipodeLat = -nadir.lat;
+            const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
+            const antipodeLabel = createTextSprite('Antipode', 24);
+            const antipodePos = geoToSphere(antipodeLat, antipodeLon);
+            antipodeLabel.position.copy(antipodePos).multiplyScalar(1.015);
+            labelsGroup.add(antipodeLabel);
+
+            // City labels
+            MAJOR_CITIES.forEach(city => {
+                const label = createTextSprite(city.name, 20);
+                const pos = geoToSphere(city.lat, city.lon);
+                label.position.copy(pos).multiplyScalar(1.008);
+                labelsGroup.add(label);
+            });
+
+            labelsGroup.visible = showLabels;
+            scene.add(labelsGroup);
+        }
+
+        // === Great Circle Functions ===
+        function initGreatCircleGroup() {
+            if (greatCircleGroup) {
+                scene.remove(greatCircleGroup);
+                greatCircleGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+            }
+            greatCircleGroup = new THREE.Group();
+            scene.add(greatCircleGroup);
+        }
+
+        function calculateGreatCircleKm(lat1, lon1, lat2, lon2) {
+            // Haversine formula for distance in km
+            const R = 6371;
+            const dLat = (lat2 - lat1) * DEG2RAD;
+            const dLon = (lon2 - lon1) * DEG2RAD;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * DEG2RAD) * Math.cos(lat2 * DEG2RAD) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        function interpolateGreatCircle(lat1, lon1, lat2, lon2, t) {
+            // Spherical linear interpolation along great circle
+            const φ1 = lat1 * DEG2RAD, λ1 = lon1 * DEG2RAD;
+            const φ2 = lat2 * DEG2RAD, λ2 = lon2 * DEG2RAD;
+
+            const d = angularDistance(lat1, lon1, lat2, lon2) * DEG2RAD;
+            if (d < 0.0001) return { lat: lat1, lon: lon1 };
+
+            const A = Math.sin((1-t)*d) / Math.sin(d);
+            const B = Math.sin(t*d) / Math.sin(d);
+
+            const x = A * Math.cos(φ1) * Math.cos(λ1) + B * Math.cos(φ2) * Math.cos(λ2);
+            const y = A * Math.cos(φ1) * Math.sin(λ1) + B * Math.cos(φ2) * Math.sin(λ2);
+            const z = A * Math.sin(φ1) + B * Math.sin(φ2);
+
+            const lat = Math.atan2(z, Math.sqrt(x*x + y*y)) * RAD2DEG;
+            const lon = Math.atan2(y, x) * RAD2DEG;
+            return { lat, lon };
+        }
+
+        function createGreatCircleLine(destCity, animate = true) {
+            const numPoints = 200;  // More points for smooth curve
+            const points = [];
+
+            // Generate points along great circle
+            for (let i = 0; i <= numPoints; i++) {
+                const t = i / numPoints;
+                const pos = interpolateGreatCircle(nadir.lat, nadir.lon, destCity.lat, destCity.lon, t);
+                points.push(geoToSphere(pos.lat, pos.lon));
+            }
+
+            // Create simple line geometry (clean, no jagged edges)
+            const geo = new THREE.BufferGeometry().setFromPoints(points);
+
+            const mat = new THREE.LineBasicMaterial({
+                color: 0xff3333,
+                transparent: true,
+                opacity: 1.0,
+                linewidth: 3,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const line = new THREE.Line(geo, mat);
+
+            const distKm = calculateGreatCircleKm(nadir.lat, nadir.lon, destCity.lat, destCity.lon);
+
+            // Create destination marker (red dot)
+            const marker = createDestinationMarker(destCity.lat, destCity.lon);
+            greatCircleGroup.add(marker);
+
+            if (animate) {
+                // For line geometry, use position count for draw range
+                const pointCount = line.geometry.attributes.position.count;
+                line.geometry.setDrawRange(0, 0);
+                marker.visible = false;  // Hide marker until line reaches destination
+
+                const connection = {
+                    dest: destCity,
+                    line: line,
+                    marker: marker,
+                    distKm: distKm
+                };
+                greatCircleConnections.push(connection);
+                greatCircleGroup.add(line);
+
+                // Store initial camera quaternion
+                const startQuat = cameraQuat.clone();
+
+                // Animation duration proportional to distance: 5s (nearby) to 10s (antipode ~20000km)
+                const MAX_DISTANCE_KM = 20015; // Half Earth circumference (antipode)
+                const MIN_DURATION = 5000;
+                const MAX_DURATION = 10000;
+                const distanceRatio = Math.min(1, distKm / MAX_DISTANCE_KM);
+                const duration = MIN_DURATION + distanceRatio * (MAX_DURATION - MIN_DURATION);
+                const startTime = performance.now();
+
+                function animateLine() {
+                    const elapsed = performance.now() - startTime;
+                    const progress = Math.min(1, elapsed / duration);
+                    // Ease-out: slow down at the end
+                    const easedProgress = 1 - Math.pow(1 - progress, 3);  // ease-out cubic
+
+                    // Animate the draw range based on point count
+                    const pointsToShow = Math.floor(easedProgress * pointCount);
+                    line.geometry.setDrawRange(0, pointsToShow);
+
+                    // Pulsing opacity (50% to 100%)
+                    const pulse = 0.75 + 0.25 * Math.sin(elapsed / 200);
+                    line.material.opacity = pulse;
+
+                    // Camera follows the tip of the line (using same eased progress)
+                    const currentPos = interpolateGreatCircle(nadir.lat, nadir.lon, destCity.lat, destCity.lon, easedProgress);
+                    const targetPoint = geoToSphere(currentPos.lat, currentPos.lon);
+
+                    // Compute quaternion to look at target
+                    const tempCamera = new THREE.Object3D();
+                    tempCamera.position.copy(camera.position);
+                    tempCamera.lookAt(targetPoint);
+                    const targetQuat = new THREE.Quaternion();
+                    targetQuat.setFromEuler(tempCamera.rotation);
+
+                    // Slerp between start and target (ease in-out for camera)
+                    const cameraEase = progress < 0.5
+                        ? 2 * progress * progress
+                        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                    cameraQuat.slerpQuaternions(startQuat, targetQuat, cameraEase);
+                    updateCameraLook();
+
+                    if (progress < 1) {
+                        requestAnimationFrame(animateLine);
+                    } else {
+                        // Animation complete, show full line, show marker and start subtle pulse
+                        line.geometry.setDrawRange(0, pointCount);
+                        marker.visible = true;
+                        startPulse(line);
+                        updateConnectionsList();
+                    }
+                }
+
+                requestAnimationFrame(animateLine);
+            } else {
+                const connection = {
+                    dest: destCity,
+                    line: line,
+                    marker: marker,
+                    distKm: distKm
+                };
+                greatCircleConnections.push(connection);
+                greatCircleGroup.add(line);
+                startPulse(line);
+            }
+
+            return distKm;
+        }
+
+        function startPulse(line) {
+            function pulse() {
+                if (!line.parent) return;  // Stop if line was removed
+                const time = performance.now();
+                // Pulse between 50% and 100% opacity
+                line.material.opacity = 0.75 + 0.25 * Math.sin(time / 500);
+                requestAnimationFrame(pulse);
+            }
+            pulse();
+        }
+
+        // Create a red dot marker at a destination city
+        function createDestinationMarker(lat, lon) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+
+            // Draw red dot with glow
+            ctx.fillStyle = '#ff3333';
+            ctx.beginPath();
+            ctx.arc(16, 16, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            // White center for visibility
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(16, 16, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                sizeAttenuation: false,
+                depthTest: false
+            });
+
+            const marker = new THREE.Sprite(mat);
+            marker.scale.set(0.02, 0.02, 1);
+
+            const pos = geoToSphere(lat, lon);
+            marker.position.copy(pos).multiplyScalar(1.002);
+
+            return marker;
+        }
+
+        function clearAllConnections() {
+            greatCircleConnections.forEach(conn => {
+                if (conn.line.parent) {
+                    greatCircleGroup.remove(conn.line);
+                }
+                if (conn.marker?.parent) {
+                    greatCircleGroup.remove(conn.marker);
+                }
+                conn.line.geometry?.dispose();
+                conn.line.material?.dispose();
+                conn.marker?.material?.map?.dispose();
+                conn.marker?.material?.dispose();
+            });
+            greatCircleConnections = [];
+            updateConnectionsList();
+        }
+
+        function removeConnection(index) {
+            const conn = greatCircleConnections[index];
+            if (conn) {
+                if (conn.line.parent) {
+                    greatCircleGroup.remove(conn.line);
+                }
+                if (conn.marker?.parent) {
+                    greatCircleGroup.remove(conn.marker);
+                }
+                conn.line.geometry?.dispose();
+                conn.line.material?.dispose();
+                conn.marker?.material?.map?.dispose();
+                conn.marker?.material?.dispose();
+                greatCircleConnections.splice(index, 1);
+                updateConnectionsList();
+            }
+        }
+
+        function updateConnectionsList() {
+            const list = document.getElementById('gc-connections');
+            list.innerHTML = '';
+
+            greatCircleConnections.forEach((conn, i) => {
+                const div = document.createElement('div');
+                div.className = 'connection-item';
+                div.innerHTML = `
+                    <span class="dest">${conn.dest.name}</span>
+                    <span class="dist">${Math.round(conn.distKm).toLocaleString()} km</span>
+                    <span class="remove" data-index="${i}">&times;</span>
+                `;
+                list.appendChild(div);
+            });
+
+            // Add click handlers for remove buttons
+            list.querySelectorAll('.remove').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    removeConnection(parseInt(e.target.dataset.index));
+                });
+            });
+        }
+
+        function rebuildGreatCircles() {
+            // Rebuild all great circle lines when location changes
+            const savedConnections = greatCircleConnections.map(c => c.dest);
+            clearAllConnections();
+            savedConnections.forEach(dest => {
+                createGreatCircleLine(dest, false);
+            });
+            updateConnectionsList();
+        }
+
+        // === Autocomplete Functions ===
+        // Normalize text to remove accents (e.g., São Paulo → Sao Paulo)
+        function normalizeText(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        }
+
+        function setupAutocomplete() {
+            const input = document.getElementById('gc-city-input');
+            const results = document.getElementById('gc-autocomplete');
+            let selectedIndex = -1;
+
+            input.addEventListener('input', () => {
+                const query = normalizeText(input.value.trim());
+                selectedCity = null;
+
+                if (query.length < 2) {
+                    results.classList.remove('show');
+                    return;
+                }
+
+                const matches = WORLD_CITIES.filter(city =>
+                    normalizeText(city.name).includes(query) ||
+                    normalizeText(city.country).includes(query)
+                ).slice(0, 10);
+
+                if (matches.length === 0) {
+                    results.classList.remove('show');
+                    return;
+                }
+
+                results.innerHTML = matches.map((city, i) => `
+                    <div class="autocomplete-item" data-index="${i}">
+                        ${city.name} <span class="country">${city.country}</span>
+                    </div>
+                `).join('');
+
+                results.classList.add('show');
+                selectedIndex = -1;
+
+                // Click handlers
+                results.querySelectorAll('.autocomplete-item').forEach((item, i) => {
+                    item.addEventListener('click', () => {
+                        selectCity(matches[i]);
+                        results.classList.remove('show');
+                    });
+                });
+            });
+
+            input.addEventListener('keydown', (e) => {
+                const items = results.querySelectorAll('.autocomplete-item');
+                if (!results.classList.contains('show') || items.length === 0) return;
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelection(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (selectedIndex >= 0) {
+                        items[selectedIndex].click();
+                    } else if (selectedCity) {
+                        document.getElementById('gc-connect').click();
+                    }
+                } else if (e.key === 'Escape') {
+                    results.classList.remove('show');
+                }
+            });
+
+            function updateSelection(items) {
+                items.forEach((item, i) => {
+                    item.classList.toggle('selected', i === selectedIndex);
+                });
+            }
+
+            // Close on outside click
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.autocomplete-container')) {
+                    results.classList.remove('show');
+                }
+            });
+        }
+
+        function selectCity(city) {
+            selectedCity = city;
+            document.getElementById('gc-city-input').value = `${city.name}, ${city.country}`;
+
+            // Show distance preview
+            const distKm = calculateGreatCircleKm(nadir.lat, nadir.lon, city.lat, city.lon);
+            const distEl = document.getElementById('gc-distance');
+            distEl.textContent = `Distance: ${Math.round(distKm).toLocaleString()} km`;
+            distEl.style.display = 'block';
+        }
+
+        // === Geographic Grid ===
+        function createGraticule() {
+            if (geoGridGroup) {
+                scene.remove(geoGridGroup);
+                geoGridGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+            }
+
+            geoGridGroup = new THREE.Group();
+
+            // Special latitudes
+            const TROPIC_CANCER = 23.4365;      // Tropic of Cancer
+            const TROPIC_CAPRICORN = -23.4365;  // Tropic of Capricorn
+            const ARCTIC_CIRCLE = 66.5636;      // Arctic Circle
+            const ANTARCTIC_CIRCLE = -66.5636;  // Antarctic Circle
+            const specialLats = [TROPIC_CANCER, TROPIC_CAPRICORN, ARCTIC_CIRCLE, ANTARCTIC_CIRCLE];
+
+            // Regular latitude lines - with screen-like blending
+            for (let lat = -90; lat <= 90; lat += 15) {
+                const points = [];
+                for (let lon = -180; lon <= 180; lon += 2) {
+                    points.push(geoToSphere(lat, lon));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const isEquator = lat === 0;
+                const mat = new THREE.LineBasicMaterial({
+                    color: isEquator ? 0x00ff88 : 0x00aaff,
+                    transparent: true,
+                    opacity: isEquator ? 0.9 : (lat % 30 === 0 ? 0.5 : 0.25),
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                geoGridGroup.add(new THREE.Line(geo, mat));
+            }
+
+            // Tropics and Polar Circles - same blue as grid, dashed
+            specialLats.forEach(lat => {
+                const points = [];
+                for (let lon = -180; lon <= 180; lon += 2) {
+                    points.push(geoToSphere(lat, lon));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineDashedMaterial({
+                    color: 0x00aaff,
+                    transparent: true,
+                    opacity: 0.5,
+                    dashSize: 6,
+                    gapSize: 3,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                const line = new THREE.Line(geo, mat);
+                line.computeLineDistances();
+                geoGridGroup.add(line);
+            });
+
+            // Longitude lines - with screen-like blending
+            for (let lon = -180; lon < 180; lon += 15) {
+                const points = [];
+                for (let lat = -89; lat <= 89; lat += 2) {
+                    points.push(geoToSphere(lat, lon));
+                }
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const mat = new THREE.LineBasicMaterial({
+                    color: 0x00aaff,
+                    transparent: true,
+                    opacity: lon === 0 ? 0.7 : (lon % 30 === 0 ? 0.5 : 0.25),
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                geoGridGroup.add(new THREE.Line(geo, mat));
+            }
+
+            geoGridGroup.visible = showGeoGrid;
+            scene.add(geoGridGroup);
+        }
+
+        // === Coastlines ===
+        async function loadCoastlines() {
+            const resMap = {
+                '110m': 'ne_110m_coastline',
+                '50m': 'ne_50m_coastline',
+                '10m': 'ne_10m_coastline'
+            };
+            const file = resMap[coastlineResolution] || 'ne_50m_coastline';
+
+            try {
+                const res = await fetch(`https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/${file}.geojson`);
+                const data = await res.json();
+                renderCoastlines(data);
+            } catch (e) {
+                console.error('Failed to load coastlines:', e);
+                if (coastlineResolution !== '110m') {
+                    coastlineResolution = '110m';
+                    loadCoastlines();
+                }
+            }
+        }
+
+        function renderCoastlines(geojson) {
+            const coastGroup = new THREE.Group();
+            // Screen-like blending for vector lines over imagery
+            const mat = new THREE.LineBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            function addLine(coords) {
+                const points = coords.map(c => geoToSphere(c[1], c[0]));
+                if (points.length > 1) {
+                    coastGroup.add(new THREE.Line(
+                        new THREE.BufferGeometry().setFromPoints(points),
+                        mat.clone()
+                    ));
+                }
+            }
+
+            geojson.features.forEach(f => {
+                const g = f.geometry;
+                if (g.type === 'LineString') addLine(g.coordinates);
+                else if (g.type === 'MultiLineString') g.coordinates.forEach(addLine);
+            });
+
+            sphereGroup.add(coastGroup);
+        }
+
+        // === Create All Content ===
+        function createSphereContent() {
+            sphereGroup = new THREE.Group();
+            createGraticule();
+            loadCoastlines();
+            scene.add(sphereGroup);
+            loading.style.display = 'none';
+        }
+
+        function rebuildAll() {
+            // Rebuild sphere content
+            if (sphereGroup) {
+                scene.remove(sphereGroup);
+                sphereGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+            }
+            createSphereContent();
+
+            // Rebuild other layers
+            createSubjectiveGrid();
+            createCities();
+            createLabels();
+            createHomeMarker();
+            if (satelliteVisible) createSatelliteMesh();
+            if (showDayNight) createDayNightSphere();
+            rebuildGreatCircles();
+        }
+
+        // === Altitude (Logarithmic) ===
+        let currentAltitudeKm = 0;
+        const MIN_ALTITUDE_M = 10;  // 10 meters minimum
+        const MAX_ALTITUDE_KM = EARTH_RADIUS_KM;  // Center of Earth
+
+        function updateAltitude(value) {
+            // LOGARITHMIC mapping for organic feel:
+            // slider 0 → 10m (surface), slider 100 → 6371km (center)
+            // More precision near surface, less sensitive at high altitudes
+            const t = value / 100;
+
+            // Logarithmic interpolation: altitude = min * (max/min)^t
+            const minKm = MIN_ALTITUDE_M / 1000;  // 0.01 km
+            const maxKm = MAX_ALTITUDE_KM;         // 6371 km
+            currentAltitudeKm = minKm * Math.pow(maxKm / minKm, t);
+
+            // Convert km to sphere units: 6371km = SURFACE_RADIUS units
+            const altitudeUnits = (currentAltitudeKm / EARTH_RADIUS_KM) * SURFACE_RADIUS;
+            const cameraY = -SURFACE_RADIUS + altitudeUnits;
+            camera.position.set(0, cameraY, 0);
+            camera.updateProjectionMatrix();
+
+            // Display with appropriate units
+            const display = document.getElementById('altitude-display');
+            if (currentAltitudeKm < 1) {
+                display.textContent = `${(currentAltitudeKm * 1000).toFixed(0)} m`;
+            } else if (currentAltitudeKm < 100) {
+                display.textContent = `${currentAltitudeKm.toFixed(1)} km`;
+            } else {
+                display.textContent = `${currentAltitudeKm.toFixed(0)} km`;
+            }
+
+            updateCameraLook();
+        }
+
+        // === Camera Controls (Quaternion-based for smooth zenith/nadir movement) ===
+        let isDragging = false;
+        let previousMouse = { x: 0, y: 0 };
+
+        // Inertia for smooth camera movement
+        let cameraVelocity = { x: 0, y: 0 };
+        const INERTIA_DAMPING = 0.92;  // How quickly velocity decays (0.9 = fast, 0.98 = slow)
+        const INERTIA_THRESHOLD = 0.01;  // Stop when velocity is below this
+
+        // Use quaternion for gimbal-lock-free rotation
+        const cameraQuat = new THREE.Quaternion();
+        // Camera angles: NEGATIVE = look UP toward antipode, POSITIVE = look DOWN toward nadir
+        // (In Three.js, positive X rotation pitches down, negative pitches up)
+        const INITIAL_VIEW_ANGLE = -Math.PI * 0.35;  // Look ~63° UP toward antipode
+        const initialEuler = new THREE.Euler(INITIAL_VIEW_ANGLE, 0, 0, 'YXZ');
+        cameraQuat.setFromEuler(initialEuler);
+
+        // Initial camera rise animation state
+        let initialRiseComplete = true; // Skip animation - just start at correct view
+        let initialRiseStartTime = null;
+        const INITIAL_RISE_DURATION = 3000; // 3 seconds for smooth rise
+
+        function updateCameraLook() {
+            // Apply quaternion to get look direction
+            const forward = new THREE.Vector3(0, 0, 1);
+            forward.applyQuaternion(cameraQuat);
+
+            camera.lookAt(camera.position.clone().add(forward.multiplyScalar(100)));
+            camera.up.set(0, 1, 0);  // Keep "up" consistent
+        }
+
+        // Ease-out function for smooth deceleration
+        function easeOutCubic(t) {
+            return 1 - Math.pow(1 - t, 3);
+        }
+
+        // Initial rise animation - camera slowly rises from nadir view to show antipode at top
+        function updateInitialRise() {
+            if (initialRiseComplete) return;
+
+            if (initialRiseStartTime === null) {
+                initialRiseStartTime = performance.now();
+            }
+
+            const elapsed = performance.now() - initialRiseStartTime;
+            const progress = Math.min(1, elapsed / INITIAL_RISE_DURATION);
+            const easedProgress = easeOutCubic(progress);
+
+            // Animate from looking down at nadir to looking up toward antipode
+            const currentAngle = INITIAL_START_ANGLE + easedProgress * (INITIAL_END_ANGLE - INITIAL_START_ANGLE);
+            const riseEuler = new THREE.Euler(currentAngle, 0, 0, 'YXZ');
+            cameraQuat.setFromEuler(riseEuler);
+            updateCameraLook();
+
+            if (progress >= 1) {
+                initialRiseComplete = true;
+            }
+        }
+
+        function rotateCameraByDelta(deltaX, deltaY) {
+            const sensitivity = 0.005;
+
+            // Create rotation quaternions for yaw (around world Y) and pitch (around local X)
+            const yawQuat = new THREE.Quaternion();
+            yawQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -deltaX * sensitivity);
+
+            const pitchQuat = new THREE.Quaternion();
+            const rightAxis = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraQuat);
+            pitchQuat.setFromAxisAngle(rightAxis, deltaY * sensitivity);
+
+            // Apply rotations: yaw first, then pitch
+            cameraQuat.premultiply(yawQuat);
+            cameraQuat.premultiply(pitchQuat);
+            cameraQuat.normalize();
+
+            updateCameraLook();
+        }
+
+        // Update camera inertia (called in animation loop)
+        function updateCameraInertia() {
+            if (isDragging) return;  // Don't apply inertia while dragging
+
+            // Check if velocity is significant
+            if (Math.abs(cameraVelocity.x) < INERTIA_THRESHOLD &&
+                Math.abs(cameraVelocity.y) < INERTIA_THRESHOLD) {
+                cameraVelocity.x = 0;
+                cameraVelocity.y = 0;
+                return;
+            }
+
+            // Apply velocity to camera rotation
+            rotateCameraByDelta(cameraVelocity.x, cameraVelocity.y);
+
+            // Dampen velocity
+            cameraVelocity.x *= INERTIA_DAMPING;
+            cameraVelocity.y *= INERTIA_DAMPING;
+        }
+
+        renderer.domElement.addEventListener('mousedown', e => {
+            isDragging = true;
+            previousMouse = { x: e.clientX, y: e.clientY };
+            // Stop any existing inertia when starting a new drag
+            cameraVelocity = { x: 0, y: 0 };
+            renderer.domElement.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', e => {
+            // Update mouse for raycasting
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            if (isDragging) {
+                const deltaX = e.clientX - previousMouse.x;
+                const deltaY = e.clientY - previousMouse.y;
+                rotateCameraByDelta(deltaX, deltaY);
+                // Track velocity for inertia (smoothed)
+                cameraVelocity.x = deltaX * 0.5 + cameraVelocity.x * 0.5;
+                cameraVelocity.y = deltaY * 0.5 + cameraVelocity.y * 0.5;
+                previousMouse = { x: e.clientX, y: e.clientY };
+            }
+
+            // City hover detection
+            checkCityHover(e);
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            renderer.domElement.style.cursor = 'grab';
+            // Inertia will continue in animation loop
+        });
+
+        renderer.domElement.style.cursor = 'grab';
+
+        // Touch controls
+        renderer.domElement.addEventListener('touchstart', e => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                previousMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                cameraVelocity = { x: 0, y: 0 };
+            }
+        }, { passive: true });
+
+        renderer.domElement.addEventListener('touchmove', e => {
+            if (!isDragging || e.touches.length !== 1) return;
+            e.preventDefault();
+            const deltaX = e.touches[0].clientX - previousMouse.x;
+            const deltaY = e.touches[0].clientY - previousMouse.y;
+            rotateCameraByDelta(deltaX, deltaY);
+            // Track velocity for inertia
+            cameraVelocity.x = deltaX * 0.5 + cameraVelocity.x * 0.5;
+            cameraVelocity.y = deltaY * 0.5 + cameraVelocity.y * 0.5;
+            previousMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }, { passive: false });
+
+        renderer.domElement.addEventListener('touchend', () => { isDragging = false; });
+
+        // === City Interaction ===
+        let hoveredCity = null;
+
+        function checkCityHover(e) {
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check home marker hover
+            if (homeMarkerMesh && homeMarkerMesh.visible) {
+                const homeIntersects = raycaster.intersectObject(homeMarkerMesh);
+                if (homeIntersects.length > 0) {
+                    cityLabel.style.display = 'block';
+                    cityLabel.style.left = e.clientX + 10 + 'px';
+                    cityLabel.style.top = e.clientY + 10 + 'px';
+                    cityLabel.textContent = 'you are here';
+                    renderer.domElement.style.cursor = 'pointer';
+                    hoveredCity = null;
+                    return;
+                }
+            }
+
+            // Check antipode marker hover
+            if (antipodeMarkerMesh && antipodeMarkerMesh.visible) {
+                const antipodeIntersects = raycaster.intersectObject(antipodeMarkerMesh);
+                if (antipodeIntersects.length > 0) {
+                    cityLabel.style.display = 'block';
+                    cityLabel.style.left = e.clientX + 10 + 'px';
+                    cityLabel.style.top = e.clientY + 10 + 'px';
+                    cityLabel.textContent = 'your antipode';
+                    renderer.domElement.style.cursor = 'pointer';
+                    hoveredCity = null;
+                    return;
+                }
+            }
+
+            // Check city hover
+            if (showCities && citiesGroup) {
+                const intersects = raycaster.intersectObjects(citiesGroup.children);
+                if (intersects.length > 0) {
+                    const city = intersects[0].object.userData;
+                    hoveredCity = city;
+                    cityLabel.style.display = 'block';
+                    cityLabel.style.left = e.clientX + 10 + 'px';
+                    cityLabel.style.top = e.clientY + 10 + 'px';
+                    cityLabel.textContent = city.city;
+                    renderer.domElement.style.cursor = 'pointer';
+                    return;
+                }
+            }
+
+            // Nothing hovered
+            hoveredCity = null;
+            cityLabel.style.display = 'none';
+            if (!isDragging) renderer.domElement.style.cursor = 'grab';
+        }
+
+        renderer.domElement.addEventListener('click', () => {
+            if (hoveredCity && !isDragging) {
+                animateToLocation(hoveredCity.lat, hoveredCity.lon);
+            }
+        });
+
+        // === UI ===
+        function updateInfo() {
+            const antipodeLat = -nadir.lat;
+            const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
+            document.getElementById('location-info').innerHTML = `
+                <div style="color:#f44">⌂ ${nadir.lat.toFixed(2)}°, ${nadir.lon.toFixed(2)}°</div>
+                <div style="color:#48f;font-size:11px">↑ Antipode: ${antipodeLat.toFixed(2)}°, ${antipodeLon.toFixed(2)}°</div>
+            `;
+        }
+
+        function setLocation(lat, lon, animate = true) {
+            if (animate) {
+                animateToLocation(lat, lon);
+            } else {
+                nadir = { lat, lon };
+                rebuildAll();
+                updateInfo();
+            }
+        }
+
+        // About modal
+        document.getElementById('about-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('about-modal').classList.add('show');
+        });
+        document.getElementById('about-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                e.currentTarget.classList.remove('show');
+            }
+        });
+
+        document.getElementById('locate').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        // Store as home location
+                        homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                        setLocation(pos.coords.latitude, pos.coords.longitude, true);
+                    },
+                    err => console.log('Location error:', err.message)
+                );
+            }
+        });
+
+        document.getElementById('location-select').addEventListener('change', e => {
+            if (e.target.value) {
+                const [lat, lon] = e.target.value.split(',').map(Number);
+                setLocation(lat, lon, true);
+            }
+        });
+
+        document.getElementById('altitude-slider').addEventListener('input', e => {
+            updateAltitude(parseInt(e.target.value));
+        });
+
+        document.getElementById('satellite-toggle').addEventListener('change', e => {
+            satelliteVisible = e.target.checked;
+            if (satelliteVisible) createSatelliteMesh();
+            else if (satelliteSphere) satelliteSphere.visible = false;
+        });
+
+        document.getElementById('subjective-grid-toggle').addEventListener('change', e => {
+            showSubjectiveGrid = e.target.checked;
+            if (subjectiveGridGroup) subjectiveGridGroup.visible = showSubjectiveGrid;
+        });
+
+        document.getElementById('cities-toggle').addEventListener('change', e => {
+            showCities = e.target.checked;
+            if (citiesGroup) citiesGroup.visible = showCities;
+        });
+
+        document.getElementById('home-marker-toggle').addEventListener('change', e => {
+            showHomeMarker = e.target.checked;
+            if (homeMarkerMesh) homeMarkerMesh.visible = showHomeMarker;
+            if (antipodeMarkerMesh) antipodeMarkerMesh.visible = showHomeMarker;
+        });
+
+        document.getElementById('coastline-resolution').addEventListener('change', e => {
+            coastlineResolution = e.target.value;
+            rebuildAll();
+        });
+
+        // === Individual Opacity Sliders ===
+        let opacityValues = {
+            coastlines: 1.0,
+            geogrid: 1.0,
+            subjgrid: 1.0,
+            satellite: 0.9,
+            cities: 1.0,
+            daynight: 0.5
+        };
+
+        function updateCoastlinesOpacity(opacity) {
+            opacityValues.coastlines = opacity;
+            if (sphereGroup) {
+                sphereGroup.traverse(obj => {
+                    if (obj.material) obj.material.opacity = 0.85 * opacity;
+                });
+            }
+        }
+
+        function updateGeoGridOpacity(opacity) {
+            opacityValues.geogrid = opacity;
+            if (geoGridGroup) {
+                geoGridGroup.traverse(obj => {
+                    if (obj.material && obj.material.opacity !== undefined) {
+                        const baseOpacity = obj.material.userData?.baseOpacity || obj.material.opacity;
+                        if (!obj.material.userData?.baseOpacity) obj.material.userData = { baseOpacity };
+                        obj.material.opacity = baseOpacity * opacity;
+                    }
+                });
+            }
+        }
+
+        function updateSubjGridOpacity(opacity) {
+            opacityValues.subjgrid = opacity;
+            if (subjectiveGridGroup) {
+                subjectiveGridGroup.traverse(obj => {
+                    if (obj.material && obj.material.opacity !== undefined) {
+                        const baseOpacity = obj.material.userData?.baseOpacity || obj.material.opacity;
+                        if (!obj.material.userData?.baseOpacity) obj.material.userData = { baseOpacity };
+                        obj.material.opacity = baseOpacity * opacity;
+                    }
+                });
+            }
+        }
+
+        function updateSatelliteOpacity(opacity) {
+            opacityValues.satellite = opacity;
+            if (satelliteSphere && satelliteSphere.material) {
+                satelliteSphere.material.opacity = opacity;
+            }
+        }
+
+        function updateCitiesOpacity(opacity) {
+            opacityValues.cities = opacity;
+            if (citiesGroup) {
+                citiesGroup.traverse(obj => {
+                    if (obj.material) obj.material.opacity = opacity;
+                });
+            }
+            if (homeMarkerMesh && homeMarkerMesh.material) homeMarkerMesh.material.opacity = opacity;
+            if (antipodeMarkerMesh && antipodeMarkerMesh.material) antipodeMarkerMesh.material.opacity = opacity;
+            if (labelsGroup) {
+                labelsGroup.traverse(obj => {
+                    if (obj.material) obj.material.opacity = opacity;
+                });
+            }
+        }
+
+        function updateDayNightOpacity(opacity) {
+            opacityValues.daynight = opacity;
+            if (dayNightSphere && dayNightSphere.material) {
+                dayNightSphere.material.opacity = opacity;
+            }
+        }
+
+        // Opacity slider event listeners
+        document.getElementById('opacity-coastlines').addEventListener('input', e => {
+            updateCoastlinesOpacity(parseInt(e.target.value) / 100);
+        });
+        document.getElementById('opacity-geogrid').addEventListener('input', e => {
+            updateGeoGridOpacity(parseInt(e.target.value) / 100);
+        });
+        document.getElementById('opacity-subjgrid').addEventListener('input', e => {
+            updateSubjGridOpacity(parseInt(e.target.value) / 100);
+        });
+        document.getElementById('opacity-satellite').addEventListener('input', e => {
+            updateSatelliteOpacity(parseInt(e.target.value) / 100);
+        });
+        document.getElementById('opacity-cities').addEventListener('input', e => {
+            updateCitiesOpacity(parseInt(e.target.value) / 100);
+        });
+        document.getElementById('opacity-daynight').addEventListener('input', e => {
+            updateDayNightOpacity(parseInt(e.target.value) / 100);
+        });
+
+        // === Set Default Button ===
+        document.getElementById('set-default-btn').addEventListener('click', () => {
+            const settings = {
+                cameraQuat: { x: cameraQuat.x, y: cameraQuat.y, z: cameraQuat.z, w: cameraQuat.w },
+                altitude: document.getElementById('altitude-slider').value,
+                opacityValues: opacityValues,
+                showGeoGrid: showGeoGrid,
+                showSubjectiveGrid: showSubjectiveGrid,
+                showCities: showCities,
+                showHomeMarker: showHomeMarker,
+                showDayNight: showDayNight,
+                coastlineResolution: coastlineResolution,
+                satelliteVisible: satelliteVisible
+            };
+            localStorage.setItem('innerEarthDefaultView', JSON.stringify(settings));
+            // Brief visual feedback instead of alert
+            const btn = document.getElementById('set-default-btn');
+            btn.textContent = 'Saved!';
+            btn.style.background = '#0af';
+            btn.style.color = '#000';
+            setTimeout(() => {
+                btn.textContent = 'Set Default View';
+                btn.style.background = '';
+                btn.style.color = '';
+            }, 1500);
+        });
+
+        // Load default settings on startup
+        function loadDefaultSettings() {
+            const saved = localStorage.getItem('innerEarthDefaultView');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+
+                    // Apply camera orientation (skip initial rise animation)
+                    if (settings.cameraQuat) {
+                        initialRiseComplete = true;
+                        cameraQuat.set(settings.cameraQuat.x, settings.cameraQuat.y, settings.cameraQuat.z, settings.cameraQuat.w);
+                        updateCameraLook();
+                    }
+
+                    // Apply altitude
+                    if (settings.altitude) {
+                        document.getElementById('altitude-slider').value = settings.altitude;
+                        updateAltitude(parseInt(settings.altitude));
+                    }
+
+                    // Apply individual opacity values
+                    if (settings.opacityValues) {
+                        const ov = settings.opacityValues;
+                        if (ov.coastlines !== undefined) {
+                            opacityValues.coastlines = ov.coastlines;
+                            document.getElementById('opacity-coastlines').value = ov.coastlines * 100;
+                        }
+                        if (ov.geogrid !== undefined) {
+                            opacityValues.geogrid = ov.geogrid;
+                            document.getElementById('opacity-geogrid').value = ov.geogrid * 100;
+                        }
+                        if (ov.subjgrid !== undefined) {
+                            opacityValues.subjgrid = ov.subjgrid;
+                            document.getElementById('opacity-subjgrid').value = ov.subjgrid * 100;
+                        }
+                        if (ov.satellite !== undefined) {
+                            opacityValues.satellite = ov.satellite;
+                            document.getElementById('opacity-satellite').value = ov.satellite * 100;
+                        }
+                        if (ov.cities !== undefined) {
+                            opacityValues.cities = ov.cities;
+                            document.getElementById('opacity-cities').value = ov.cities * 100;
+                        }
+                        if (ov.daynight !== undefined) {
+                            opacityValues.daynight = ov.daynight;
+                            document.getElementById('opacity-daynight').value = ov.daynight * 100;
+                        }
+                    }
+
+                    // Apply display toggles
+                    if (settings.showGeoGrid !== undefined) {
+                        showGeoGrid = settings.showGeoGrid;
+                        document.getElementById('geo-grid-toggle').checked = showGeoGrid;
+                        if (geoGridGroup) geoGridGroup.visible = showGeoGrid;
+                    }
+                    if (settings.showSubjectiveGrid !== undefined) {
+                        showSubjectiveGrid = settings.showSubjectiveGrid;
+                        document.getElementById('subjective-grid-toggle').checked = showSubjectiveGrid;
+                        if (subjectiveGridGroup) subjectiveGridGroup.visible = showSubjectiveGrid;
+                    }
+                    if (settings.showCities !== undefined) {
+                        showCities = settings.showCities;
+                        document.getElementById('cities-toggle').checked = showCities;
+                        if (citiesGroup) citiesGroup.visible = showCities;
+                    }
+                    if (settings.showHomeMarker !== undefined) {
+                        showHomeMarker = settings.showHomeMarker;
+                        document.getElementById('home-marker-toggle').checked = showHomeMarker;
+                        if (homeMarkerMesh) homeMarkerMesh.visible = showHomeMarker;
+                        if (antipodeMarkerMesh) antipodeMarkerMesh.visible = showHomeMarker;
+                    }
+                    if (settings.coastlineResolution) {
+                        coastlineResolution = settings.coastlineResolution;
+                        document.getElementById('coastline-resolution').value = coastlineResolution;
+                    }
+                    if (settings.satelliteVisible !== undefined) {
+                        satelliteVisible = settings.satelliteVisible;
+                        document.getElementById('satellite-toggle').checked = satelliteVisible;
+                        if (satelliteVisible) createSatelliteMesh();
+                    }
+                } catch (e) {
+                    console.log('Could not load default settings:', e);
+                }
+            }
+        }
+
+        document.getElementById('geo-grid-toggle').addEventListener('change', e => {
+            showGeoGrid = e.target.checked;
+            if (geoGridGroup) geoGridGroup.visible = showGeoGrid;
+        });
+
+        document.getElementById('coastlines-toggle').addEventListener('change', e => {
+            showCoastlines = e.target.checked;
+            if (sphereGroup) sphereGroup.visible = showCoastlines;
+        });
+
+        document.getElementById('daynight-toggle').addEventListener('change', e => {
+            showDayNight = e.target.checked;
+            document.getElementById('daynight-controls').style.display = showDayNight ? 'block' : 'none';
+            if (showDayNight) {
+                createDayNightSphere();
+            } else if (dayNightSphere) {
+                scene.remove(dayNightSphere);
+                dayNightSphere.geometry?.dispose();
+                dayNightSphere.material?.dispose();
+                dayNightSphere = null;
+            }
+        });
+
+        document.getElementById('time-offset-slider').addEventListener('input', e => {
+            timeOffsetHours = parseFloat(e.target.value);
+            document.getElementById('time-offset-display').textContent = timeOffsetHours >= 0 ? `+${timeOffsetHours}` : timeOffsetHours;
+            if (showDayNight) createDayNightSphere();
+        });
+
+        document.getElementById('daynight-now').addEventListener('click', () => {
+            timeOffsetHours = 0;
+            document.getElementById('time-offset-slider').value = 0;
+            document.getElementById('time-offset-display').textContent = '0';
+            if (showDayNight) createDayNightSphere();
+        });
+
+        // === Great Circle Event Listeners ===
+        document.getElementById('greatcircle-toggle').addEventListener('change', e => {
+            showGreatCircles = e.target.checked;
+            if (greatCircleGroup) greatCircleGroup.visible = showGreatCircles;
+        });
+
+        document.getElementById('gc-connect').addEventListener('click', () => {
+            if (selectedCity) {
+                createGreatCircleLine(selectedCity, true);
+                document.getElementById('gc-city-input').value = '';
+                document.getElementById('gc-distance').style.display = 'none';
+                selectedCity = null;
+            } else {
+                // Flash the input to indicate selection needed
+                const input = document.getElementById('gc-city-input');
+                input.style.borderColor = '#f44';
+                setTimeout(() => { input.style.borderColor = ''; }, 1000);
+            }
+        });
+
+        document.getElementById('gc-clear').addEventListener('click', () => {
+            clearAllConnections();
+            document.getElementById('gc-distance').style.display = 'none';
+        });
+
+        // Initialize autocomplete
+        setupAutocomplete();
+
+        // === Window Resize ===
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // === Walking Controls (WASD / Arrow Keys) - Hamster Ball Style ===
+        // Walking moves your position on Earth's surface while keeping you at the center of the sphere
+        const GROUND_LEVEL_KM = 50;  // Walking enabled below 50km altitude for smoother experience
+        const WALK_SPEED = 0.015;  // Degrees per frame - smooth walking speed
+        const keysPressed = { forward: false, backward: false, left: false, right: false };
+        let isWalking = false;
+        let walkFrameCount = 0;
+
+        function startWalking() {
+            if (!isWalking && currentAltitudeKm <= GROUND_LEVEL_KM) {
+                isWalking = true;
+                walkFrameCount = 0;
+            }
+        }
+
+        function stopWalking() {
+            if (isWalking) {
+                isWalking = false;
+                // Only rebuild if we walked a significant amount
+                if (walkFrameCount > 5) {
+                    rebuildAll();
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            // Don't walk if typing in an input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            switch (e.key.toLowerCase()) {
+                case 'w': case 'arrowup':
+                    keysPressed.forward = true;
+                    startWalking();
+                    e.preventDefault();
+                    break;
+                case 's': case 'arrowdown':
+                    keysPressed.backward = true;
+                    startWalking();
+                    e.preventDefault();
+                    break;
+                case 'a': case 'arrowleft':
+                    keysPressed.left = true;
+                    startWalking();
+                    e.preventDefault();
+                    break;
+                case 'd': case 'arrowright':
+                    keysPressed.right = true;
+                    startWalking();
+                    e.preventDefault();
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.key.toLowerCase()) {
+                case 'w': case 'arrowup':
+                    keysPressed.forward = false;
+                    break;
+                case 's': case 'arrowdown':
+                    keysPressed.backward = false;
+                    break;
+                case 'a': case 'arrowleft':
+                    keysPressed.left = false;
+                    break;
+                case 'd': case 'arrowright':
+                    keysPressed.right = false;
+                    break;
+            }
+            // If all keys released, stop walking
+            if (!keysPressed.forward && !keysPressed.backward && !keysPressed.left && !keysPressed.right) {
+                stopWalking();
+            }
+        });
+
+        // Convert a direction in camera space to lat/lon movement
+        // In the InnerEarth view, camera looks outward from center
+        // Forward (looking direction) should move nadir OPPOSITE to where you look
+        // (like a hamster ball - you walk toward what you see, so the ball rolls that way)
+        function updateWalking() {
+            // Only walk at ground level
+            if (currentAltitudeKm > GROUND_LEVEL_KM) return;
+            if (!keysPressed.forward && !keysPressed.backward && !keysPressed.left && !keysPressed.right) return;
+
+            walkFrameCount++;
+
+            // Get camera look direction in world space
+            const lookDir = new THREE.Vector3(0, 0, 1).applyQuaternion(cameraQuat);
+            const rightDir = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraQuat);
+
+            // Build movement vector based on keys
+            // Forward = move toward where you're looking (nadir moves in look direction on sphere)
+            let moveDir = new THREE.Vector3(0, 0, 0);
+            if (keysPressed.forward) moveDir.add(lookDir);
+            if (keysPressed.backward) moveDir.sub(lookDir);
+            if (keysPressed.right) moveDir.add(rightDir);
+            if (keysPressed.left) moveDir.sub(rightDir);
+
+            if (moveDir.lengthSq() < 0.001) return;
+            moveDir.normalize();
+
+            // Project movement onto the horizontal plane (XZ in world coords)
+            // This gives us the direction to move on the sphere surface
+            const horizMove = new THREE.Vector3(moveDir.x, 0, moveDir.z);
+            if (horizMove.lengthSq() < 0.001) {
+                // Moving straight up/down - use vertical component to adjust latitude only
+                const latChange = moveDir.y * WALK_SPEED;
+                nadir.lat = Math.max(-89.9, Math.min(89.9, nadir.lat - latChange));
+                updateInfo();
+                return;
+            }
+            horizMove.normalize();
+
+            // Speed scales with altitude (slower near ground for fine control)
+            const speedMultiplier = 0.5 + currentAltitudeKm * 0.5;
+            const speed = WALK_SPEED * speedMultiplier;
+
+            // In our coordinate system:
+            // +X is East, -X is West (affects longitude)
+            // +Z is North, -Z is South (affects latitude)
+            // But we're inside the sphere, so directions are inverted
+            // Walking "forward" (toward where you look) should move nadir that direction
+
+            // Calculate bearing from current position based on horizontal movement direction
+            // horizMove.z corresponds to North/South (latitude change)
+            // horizMove.x corresponds to East/West (longitude change)
+
+            // Move nadir in the direction we're walking
+            // Positive Z = looking "north" in world = move nadir north = increase latitude
+            // Positive X = looking "east" in world = move nadir east = increase longitude
+
+            const latChange = horizMove.z * speed;
+            const lonChange = horizMove.x * speed / Math.max(0.1, Math.cos(nadir.lat * DEG2RAD)); // Adjust for latitude
+
+            let newLat = nadir.lat + latChange;
+            let newLon = nadir.lon + lonChange;
+
+            // Clamp latitude
+            newLat = Math.max(-89.9, Math.min(89.9, newLat));
+
+            // Wrap longitude
+            if (newLon > 180) newLon -= 360;
+            if (newLon < -180) newLon += 360;
+
+            nadir.lat = newLat;
+            nadir.lon = newLon;
+
+            // Update visual elements that depend on nadir position
+            // Move markers and grids smoothly
+            if (homeMarkerMesh) {
+                const pos = geoToSphere(nadir.lat, nadir.lon);
+                homeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
+            }
+            if (antipodeMarkerMesh) {
+                const antipodeLat = -nadir.lat;
+                const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
+                const pos = geoToSphere(antipodeLat, antipodeLon);
+                antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
+            }
+
+            updateInfo();
+        }
+
+        // === Animation Loop ===
+        let lastDayNightUpdate = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            updateInitialRise();  // Camera rise animation on first load
+            updateCameraInertia();  // Smooth camera momentum
+            updateAnimation();
+            updateWalking();
+
+            // Update day/night sphere every 30 seconds when enabled (for real-time sun movement)
+            const now = performance.now();
+            if (showDayNight && now - lastDayNightUpdate > 30000) {
+                createDayNightSphere();
+                lastDayNightUpdate = now;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // === Initialize ===
+        loadSatelliteTexture();
+        createSphereContent();
+        createSubjectiveGrid();
+        createCities();
+        createLabels();
+        createHomeMarker();
+        initGreatCircleGroup();
+        document.getElementById('greatcircle-toggle').checked = true;  // Default on
+        loadDefaultSettings();  // Load saved default view if available
+        updateCameraLook();
+        updateInfo();
+        animate();
+
+        // Auto-locate user on startup
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                    setLocation(pos.coords.latitude, pos.coords.longitude, true);
+                },
+                () => {
+                    // Silent fallback - stay at default location (Paris)
+                    console.log('Geolocation unavailable, using default location');
+                }
+            );
+        }
+
+        console.log('InnerEarth SPHERE initialized with all features!');
+    })();
+    </script>
+</body>
+</html>
