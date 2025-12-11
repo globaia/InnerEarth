@@ -654,8 +654,8 @@
     <script>
     (function() {
         // === Configuration ===
-        let nadir = { lat: 48.8566, lon: 2.3522 };
-        let homeLocation = { lat: 48.8566, lon: 2.3522 };  // Stored home location
+        let nadir = { lat: -90, lon: 0 };  // Default to South Pole until geolocation succeeds
+        let homeLocation = { lat: -90, lon: 0 };  // Stored home location
         const SPHERE_RADIUS = 500;
 
         // === Major Cities Data ===
@@ -3894,8 +3894,8 @@
                     setLocation(pos.coords.latitude, pos.coords.longitude, true);
                 },
                 (err) => {
-                    // Silent fallback - stay at default location (Paris)
-                    console.log('Startup geolocation unavailable:', err.code, err.message, '- using default location');
+                    // Silent fallback - stay at South Pole
+                    console.log('Startup geolocation unavailable:', err.code, err.message, '- staying at South Pole');
                 },
                 { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
             );
