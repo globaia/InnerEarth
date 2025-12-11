@@ -940,7 +940,7 @@
             const verts = [], uvs = [], indices = [];
 
             for (let i = 0; i <= latSegs; i++) {
-                const lat = 90 - (180 * i / latSegs);  // +90 to -90 for correct UV (v=0 at top)
+                const lat = -90 + (180 * i / latSegs);  // -90 to +90 (south to north)
                 for (let j = 0; j <= lonSegs; j++) {
                     const lon = -180 + (360 * j / lonSegs);
                     const pos = geoToSphere(lat, lon);
@@ -949,7 +949,10 @@
                         pos.y * SATELLITE_RADIUS_SCALE,
                         pos.z * SATELLITE_RADIUS_SCALE
                     );
-                    uvs.push(j / lonSegs, i / latSegs);
+                    // UV: u = longitude, v = latitude
+                    // Equirectangular texture: v=0 is north (top), v=1 is south (bottom)
+                    // lat=-90 (i=0) should map to v=1, lat=+90 (i=latSegs) should map to v=0
+                    uvs.push(j / lonSegs, 1 - (i / latSegs));
                 }
             }
 
