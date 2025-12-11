@@ -932,19 +932,25 @@
                 satelliteSphere.material?.dispose();
             }
 
-            const latSegs = 90, lonSegs = 180;
+            // Create satellite sphere using same geoToSphere projection as coastlines
+            // but at a slightly larger radius to prevent z-fighting
+            const SATELLITE_RADIUS_SCALE = 1.001;  // Slightly behind coastlines (larger = further from camera inside sphere)
+
+            const latSegs = 128, lonSegs = 256;  // Higher resolution for better quality
             const verts = [], uvs = [], indices = [];
 
-            // Create sphere at same size as vector grid (blending handles overlap)
-            const SATELLITE_SCALE = 1.0;  // Same size as vectors
-
             for (let i = 0; i <= latSegs; i++) {
-                const lat = -90 + (180 * i / latSegs);
+                const lat = 90 - (180 * i / latSegs);  // From +90 to -90 for correct UV mapping
                 for (let j = 0; j <= lonSegs; j++) {
                     const lon = -180 + (360 * j / lonSegs);
                     const pos = geoToSphere(lat, lon);
-                    // Scale outward to be outside vector grid
-                    verts.push(pos.x * SATELLITE_SCALE, pos.y * SATELLITE_SCALE, pos.z * SATELLITE_SCALE);
+                    // Scale slightly outward to be behind vector lines
+                    verts.push(
+                        pos.x * SATELLITE_RADIUS_SCALE,
+                        pos.y * SATELLITE_RADIUS_SCALE,
+                        pos.z * SATELLITE_RADIUS_SCALE
+                    );
+                    // UV mapping for equirectangular texture
                     uvs.push(j / lonSegs, i / latSegs);
                 }
             }
@@ -952,7 +958,8 @@
             for (let i = 0; i < latSegs; i++) {
                 for (let j = 0; j < lonSegs; j++) {
                     const a = i * (lonSegs + 1) + j;
-                    indices.push(a, a + lonSegs + 1, a + 1, a + 1, a + lonSegs + 1, a + lonSegs + 2);
+                    indices.push(a, a + lonSegs + 1, a + 1);
+                    indices.push(a + 1, a + lonSegs + 1, a + lonSegs + 2);
                 }
             }
 
@@ -967,9 +974,9 @@
                 side: THREE.BackSide,  // Render inside face since we're inside the sphere
                 transparent: true,
                 opacity: opacityValues.satellite,
-                depthWrite: false,  // Prevent z-fighting with other elements
-                blending: THREE.AdditiveBlending  // Blend with vectors
+                depthWrite: false  // Allow other elements to render on top
             }));
+
             satelliteSphere.visible = satelliteVisible;
             if (worldGroup) worldGroup.add(satelliteSphere);
             else scene.add(satelliteSphere);
