@@ -953,15 +953,13 @@
                 }
             }
 
-            // Create triangles with correct winding for viewing from inside
-            // (reversed winding so normals point inward)
+            // Standard triangle winding
             for (let i = 0; i < latSegs; i++) {
                 for (let j = 0; j < lonSegs; j++) {
                     const a = i * (lonSegs + 1) + j;
                     const b = a + lonSegs + 1;
-                    // Reverse winding order for inside viewing
-                    indices.push(a, a + 1, b);
-                    indices.push(a + 1, b + 1, b);
+                    indices.push(a, b, a + 1);
+                    indices.push(a + 1, b, b + 1);
                 }
             }
 
@@ -973,7 +971,7 @@
 
             satelliteSphere = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
                 map: satelliteTexture,
-                side: THREE.FrontSide,  // Front side with inward normals
+                side: THREE.DoubleSide,  // Visible from both sides
                 transparent: true,
                 opacity: opacityValues.satellite,
                 depthWrite: false
