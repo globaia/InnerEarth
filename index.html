@@ -608,6 +608,8 @@
             <label style="font-size:10px;color:#666;">Character height: <span id="char-height-display">50 km</span></label>
             <input type="range" id="char-height-slider" min="0" max="100" value="40" style="width:100%;">
             <div style="font-size:9px;color:#555;margin:4px 0 0 0;">Use WASD to walk, camera follows from behind</div>
+            <button class="btn-secondary" id="set-new-home-btn" style="margin-top:8px;width:100%;font-size:10px;">Set Current Location as Home</button>
+            <div id="new-home-status" style="font-size:9px;color:#0af;margin-top:4px;display:none;"></div>
         </div>
 
         <h4>Line Animation</h4>
@@ -909,6 +911,13 @@
             return distanceToSphere(dist, az);
         }
 
+        // Convert lat/lon to sphere position relative to homeLocation (for Great Circle)
+        function geoToSphereFromHome(lat, lon) {
+            const dist = angularDistance(homeLocation.lat, homeLocation.lon, lat, lon);
+            const az = azimuth(homeLocation.lat, homeLocation.lon, lat, lon);
+            return distanceToSphere(dist, az);
+        }
+
         // === Animation System ===
         let animationTarget = null;
         let animationStart = null;
@@ -1206,8 +1215,8 @@
             homeMarkerMesh.scale.set(0.04, 0.04, 1);  // Screen-space size
             homeMarkerMesh.renderOrder = 10;  // Render after satellite
 
-            // Position at nadir - same radius as sphere (depthTest:false ensures visibility)
-            const pos = geoToSphere(nadir.lat, nadir.lon);
+            // Position at homeLocation - same radius as sphere (depthTest:false ensures visibility)
+            const pos = geoToSphere(homeLocation.lat, homeLocation.lon);
             homeMarkerMesh.position.copy(pos);  // Same radius, depthTest:false renders on top
 
             homeMarkerMesh.visible = showHomeMarker;
@@ -1482,13 +1491,13 @@
 
             // Home label
             const homeLabel = createTextSprite('Home', 28);
-            const homePos = geoToSphere(nadir.lat, nadir.lon);
+            const homePos = geoToSphere(homeLocation.lat, homeLocation.lon);
             homeLabel.position.copy(homePos).multiplyScalar(1.015);
             labelsGroup.add(homeLabel);
 
-            // Antipode label
-            const antipodeLat = -nadir.lat;
-            const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
+            // Antipode label (opposite of home)
+            const antipodeLat = -homeLocation.lat;
+            const antipodeLon = homeLocation.lon > 0 ? homeLocation.lon - 180 : homeLocation.lon + 180;
             const antipodeLabel = createTextSprite('Antipode', 24);
             const antipodePos = geoToSphere(antipodeLat, antipodeLon);
             antipodeLabel.position.copy(antipodePos).multiplyScalar(1.015);
@@ -1555,10 +1564,10 @@
             const numPoints = 200;  // More points for smooth curve
             const points = [];
 
-            // Generate points along great circle
+            // Generate points along great circle from homeLocation to destination
             for (let i = 0; i <= numPoints; i++) {
                 const t = i / numPoints;
-                const pos = interpolateGreatCircle(nadir.lat, nadir.lon, destCity.lat, destCity.lon, t);
+                const pos = interpolateGreatCircle(homeLocation.lat, homeLocation.lon, destCity.lat, destCity.lon, t);
                 points.push(geoToSphere(pos.lat, pos.lon));
             }
 
@@ -1576,7 +1585,7 @@
 
             const line = new THREE.Line(geo, mat);
 
-            const distKm = calculateGreatCircleKm(nadir.lat, nadir.lon, destCity.lat, destCity.lon);
+            const distKm = calculateGreatCircleKm(homeLocation.lat, homeLocation.lon, destCity.lat, destCity.lon);
 
             // Create destination marker (red dot)
             const marker = createDestinationMarker(destCity.lat, destCity.lon);
@@ -1620,20 +1629,7 @@
                     const pulse = 0.85 + 0.15 * Math.sin(elapsed / 150);
                     line.material.opacity = pulse;
 
-                    // Camera follows the tip of the line exactly
-                    const currentPos = interpolateGreatCircle(nadir.lat, nadir.lon, destCity.lat, destCity.lon, easedProgress);
-                    const targetPoint = geoToSphere(currentPos.lat, currentPos.lon);
-
-                    // Directly look at the current line tip position
-                    const tempCamera = new THREE.Object3D();
-                    tempCamera.position.copy(camera.position);
-                    tempCamera.lookAt(targetPoint);
-                    const targetQuat = new THREE.Quaternion();
-                    targetQuat.setFromEuler(tempCamera.rotation);
-
-                    // Smooth camera rotation - lerp toward target each frame
-                    cameraQuat.slerp(targetQuat, 0.08);
-                    updateCameraLook();
+                    // Camera is free - user can move it during animation
 
                     if (progress < 1) {
                         requestAnimationFrame(animateLine);
@@ -1867,8 +1863,8 @@
             selectedCity = city;
             document.getElementById('gc-city-input').value = `${city.name}, ${city.country}`;
 
-            // Show distance preview
-            const distKm = calculateGreatCircleKm(nadir.lat, nadir.lon, city.lat, city.lon);
+            // Show distance preview from homeLocation
+            const distKm = calculateGreatCircleKm(homeLocation.lat, homeLocation.lon, city.lat, city.lon);
             const distEl = document.getElementById('gc-distance');
             distEl.textContent = `Distance: ${Math.round(distKm).toLocaleString()} km`;
             distEl.style.display = 'block';
@@ -3006,6 +3002,37 @@
             if (characterLoaded) {
                 loadCharacter();
             }
+        });
+
+        // Set current location as new home (for Great Circle tracing)
+        document.getElementById('set-new-home-btn').addEventListener('click', () => {
+            // Set homeLocation to current nadir (character's current position)
+            homeLocation = { lat: nadir.lat, lon: nadir.lon };
+
+            // Update home marker position
+            createHomeMarker();
+
+            // Rebuild labels to update Home and Antipode positions
+            createLabels();
+
+            // Rebuild great circles from new home location
+            rebuildGreatCircles();
+
+            // Update home city input to show coordinates
+            const homeInput = document.getElementById('home-city-input');
+            if (homeInput) {
+                homeInput.value = `${nadir.lat.toFixed(4)}°, ${nadir.lon.toFixed(4)}°`;
+            }
+
+            // Show status message
+            const statusEl = document.getElementById('new-home-status');
+            statusEl.textContent = `Home set to ${nadir.lat.toFixed(2)}°, ${nadir.lon.toFixed(2)}°`;
+            statusEl.style.display = 'block';
+
+            // Hide status after 3 seconds
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
         });
 
         // === Window Resize ===
