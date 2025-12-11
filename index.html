@@ -363,13 +363,13 @@
         <div style="font-size:10px;color:#666;">0 = surface | 100 = center</div>
 
         <h4>Walking Speed</h4>
-        <label>Speed: <span id="walk-speed-display">5 km/h</span></label>
-        <input type="range" id="walk-speed-slider" min="0" max="100" value="25">
+        <label>Speed: <span id="walk-speed-display">50 km/h</span></label>
+        <input type="range" id="walk-speed-slider" min="0" max="100" value="42">
         <div style="font-size:10px;color:#666;">Walking (5) → Running (40) → Driving (120) → Flight (1000+)</div>
 
         <h4>Display</h4>
         <div class="checkbox-row">
-            <input type="checkbox" id="satellite-toggle">
+            <input type="checkbox" id="satellite-toggle" checked>
             <label for="satellite-toggle" style="margin:0;color:#aaa;">Satellite imagery</label>
         </div>
         <input type="range" id="opacity-satellite" class="opacity-slider" min="0" max="100" value="90">
@@ -796,7 +796,7 @@
         let sphereGroup, geoGridGroup, subjectiveGridGroup, citiesGroup, homeMarkerMesh, antipodeMarkerMesh, antipodeLabelSprite;
         let showAntipodeLabel = true;
         let labelsGroup = null;
-        let satelliteSphere = null, satelliteVisible = false, satelliteTexture = null;
+        let satelliteSphere = null, satelliteVisible = true, satelliteTexture = null;  // Satellite ON by default
         let dayNightSphere = null;
 
         // === World Group for Smooth Walking ===
@@ -933,33 +933,35 @@
             }
 
             // Create satellite sphere using same geoToSphere projection as coastlines
-            // but at a slightly larger radius to prevent z-fighting
-            const SATELLITE_RADIUS_SCALE = 1.001;  // Slightly behind coastlines (larger = further from camera inside sphere)
+            // Slightly larger radius places it behind vectors (further from camera when inside sphere)
+            const SATELLITE_RADIUS_SCALE = 1.002;
 
-            const latSegs = 128, lonSegs = 256;  // Higher resolution for better quality
+            const latSegs = 128, lonSegs = 256;
             const verts = [], uvs = [], indices = [];
 
             for (let i = 0; i <= latSegs; i++) {
-                const lat = 90 - (180 * i / latSegs);  // From +90 to -90 for correct UV mapping
+                const lat = 90 - (180 * i / latSegs);  // +90 to -90 for correct UV (v=0 at top)
                 for (let j = 0; j <= lonSegs; j++) {
                     const lon = -180 + (360 * j / lonSegs);
                     const pos = geoToSphere(lat, lon);
-                    // Scale slightly outward to be behind vector lines
                     verts.push(
                         pos.x * SATELLITE_RADIUS_SCALE,
                         pos.y * SATELLITE_RADIUS_SCALE,
                         pos.z * SATELLITE_RADIUS_SCALE
                     );
-                    // UV mapping for equirectangular texture
                     uvs.push(j / lonSegs, i / latSegs);
                 }
             }
 
+            // Create triangles with correct winding for viewing from inside
+            // (reversed winding so normals point inward)
             for (let i = 0; i < latSegs; i++) {
                 for (let j = 0; j < lonSegs; j++) {
                     const a = i * (lonSegs + 1) + j;
-                    indices.push(a, a + lonSegs + 1, a + 1);
-                    indices.push(a + 1, a + lonSegs + 1, a + lonSegs + 2);
+                    const b = a + lonSegs + 1;
+                    // Reverse winding order for inside viewing
+                    indices.push(a, a + 1, b);
+                    indices.push(a + 1, b + 1, b);
                 }
             }
 
@@ -971,10 +973,10 @@
 
             satelliteSphere = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
                 map: satelliteTexture,
-                side: THREE.BackSide,  // Render inside face since we're inside the sphere
+                side: THREE.FrontSide,  // Front side with inward normals
                 transparent: true,
                 opacity: opacityValues.satellite,
-                depthWrite: false  // Allow other elements to render on top
+                depthWrite: false
             }));
 
             satelliteSphere.visible = satelliteVisible;
@@ -2824,7 +2826,7 @@
         // At 60 fps, degrees per frame = (km/h) / (111.32 * 3600) * 60 = km/h / 6679.2
         // Or: degrees per frame = km/h * 0.0001497
         const KMH_TO_DEG_PER_FRAME = 1 / (111.32 * 60);  // Convert km/h to degrees per frame at 60fps
-        let walkSpeedKmh = 5;  // Default 5 km/h (walking pace)
+        let walkSpeedKmh = 50;  // Default 50 km/h
         const keysPressed = { forward: false, backward: false, left: false, right: false };
         let isWalking = false;
         let walkFrameCount = 0;
