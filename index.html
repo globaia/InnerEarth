@@ -2998,29 +2998,23 @@
             }
         });
 
-        // Set current location as new home (for Great Circle tracing)
+        // Set character's current location as new home (for Great Circle tracing)
         document.getElementById('set-new-home-btn').addEventListener('click', () => {
-            // Set homeLocation to current nadir (character's current position)
+            // Set homeLocation to current nadir (exactly below the character)
             homeLocation = { lat: nadir.lat, lon: nadir.lon };
 
-            // Update home marker position
-            createHomeMarker();
-
-            // Rebuild labels to update Home and Antipode positions
-            createLabels();
-
-            // Rebuild great circles from new home location
-            rebuildGreatCircles();
+            // Rebuild the entire world so buildNadir updates and home marker is exactly at nadir
+            rebuildAll();
 
             // Update home city input to show coordinates
             const homeInput = document.getElementById('home-city-input');
             if (homeInput) {
-                homeInput.value = `${nadir.lat.toFixed(4)}°, ${nadir.lon.toFixed(4)}°`;
+                homeInput.value = `${homeLocation.lat.toFixed(4)}°, ${homeLocation.lon.toFixed(4)}°`;
             }
 
             // Show status message
             const statusEl = document.getElementById('new-home-status');
-            statusEl.textContent = `Home set to ${nadir.lat.toFixed(2)}°, ${nadir.lon.toFixed(2)}°`;
+            statusEl.textContent = `Home set to ${homeLocation.lat.toFixed(2)}°, ${homeLocation.lon.toFixed(2)}°`;
             statusEl.style.display = 'block';
 
             // Hide status after 3 seconds
