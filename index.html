@@ -3003,8 +3003,19 @@
             // Set homeLocation to current nadir (exactly below the character)
             homeLocation = { lat: nadir.lat, lon: nadir.lon };
 
-            // Rebuild the entire world so buildNadir updates and home marker is exactly at nadir
-            rebuildAll();
+            // Position home marker exactly at bottom of sphere (where character stands)
+            // This is the nadir position in world coordinates: (0, -SPHERE_RADIUS, 0)
+            if (homeMarkerMesh) {
+                homeMarkerMesh.position.set(0, -SPHERE_RADIUS * 0.999, 0);
+            }
+
+            // Update antipode marker to opposite position (top of sphere)
+            if (antipodeMarkerMesh) {
+                antipodeMarkerMesh.position.set(0, SPHERE_RADIUS * 0.999, 0);
+            }
+
+            // Rebuild great circles from new home location
+            rebuildGreatCircles();
 
             // Update home city input to show coordinates
             const homeInput = document.getElementById('home-city-input');
