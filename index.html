@@ -3003,15 +3003,25 @@
             // Set homeLocation to current nadir (exactly below the character)
             homeLocation = { lat: nadir.lat, lon: nadir.lon };
 
-            // Position home marker exactly at bottom of sphere (where character stands)
-            // This is the nadir position in world coordinates: (0, -SPHERE_RADIUS, 0)
+            // The character stands at the bottom of the sphere in screen space.
+            // But worldGroup has rotated, so we need to find where (0, -R, 0) maps to
+            // in the rotated world's local coordinates.
+            //
+            // The inverse of worldRotation tells us where the original bottom now is
+            // in the rotated coordinate system.
+            const bottomWorld = new THREE.Vector3(0, -SPHERE_RADIUS * 0.999, 0);
+            const invRotation = worldRotation.clone().invert();
+            bottomWorld.applyQuaternion(invRotation);
+
             if (homeMarkerMesh) {
-                homeMarkerMesh.position.set(0, -SPHERE_RADIUS * 0.999, 0);
+                homeMarkerMesh.position.copy(bottomWorld);
             }
 
-            // Update antipode marker to opposite position (top of sphere)
+            // Update antipode marker to opposite position
+            const topWorld = new THREE.Vector3(0, SPHERE_RADIUS * 0.999, 0);
+            topWorld.applyQuaternion(invRotation);
             if (antipodeMarkerMesh) {
-                antipodeMarkerMesh.position.set(0, SPHERE_RADIUS * 0.999, 0);
+                antipodeMarkerMesh.position.copy(topWorld);
             }
 
             // Rebuild great circles from new home location
