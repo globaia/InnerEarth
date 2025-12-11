@@ -913,16 +913,22 @@
         }
 
         // Convert lat/lon to sphere position accounting for current world rotation
-        // Use this when homeLocation differs from buildNadir (after walking and setting new home)
+        // Use this for Great Circle when homeLocation differs from buildNadir (after walking and setting new home)
         function geoToSphereRotated(lat, lon) {
-            // Calculate position relative to current nadir (where character is)
-            const dist = angularDistance(nadir.lat, nadir.lon, lat, lon);
-            const az = azimuth(nadir.lat, nadir.lon, lat, lon);
-            const pos = distanceToSphere(dist, az);
-            // Apply inverse rotation to get position in worldGroup's local coordinates
+            // Calculate angular distance and azimuth from homeLocation to target
+            const dist = angularDistance(homeLocation.lat, homeLocation.lon, lat, lon);
+            const az = azimuth(homeLocation.lat, homeLocation.lon, lat, lon);
+
+            // Get the position as if homeLocation were at the bottom of sphere (0, -R, 0)
+            const posFromBottom = distanceToSphere(dist, az);
+
+            // The home marker is at bottomWorld = (0, -R, 0) rotated by inverse worldRotation
+            // So we need to apply the same transformation to position this point correctly
+            // relative to the home marker's actual position in worldGroup
             const invRotation = worldRotation.clone().invert();
-            pos.applyQuaternion(invRotation);
-            return pos;
+            posFromBottom.applyQuaternion(invRotation);
+
+            return posFromBottom;
         }
 
         // === Animation System ===
