@@ -912,6 +912,19 @@
             return distanceToSphere(dist, az);
         }
 
+        // Convert lat/lon to sphere position accounting for current world rotation
+        // Use this when homeLocation differs from buildNadir (after walking and setting new home)
+        function geoToSphereRotated(lat, lon) {
+            // Calculate position relative to current nadir (where character is)
+            const dist = angularDistance(nadir.lat, nadir.lon, lat, lon);
+            const az = azimuth(nadir.lat, nadir.lon, lat, lon);
+            const pos = distanceToSphere(dist, az);
+            // Apply inverse rotation to get position in worldGroup's local coordinates
+            const invRotation = worldRotation.clone().invert();
+            pos.applyQuaternion(invRotation);
+            return pos;
+        }
+
         // === Animation System ===
         let animationTarget = null;
         let animationStart = null;
@@ -1559,10 +1572,11 @@
             const points = [];
 
             // Generate points along great circle from homeLocation to destination
+            // Use geoToSphereRotated to account for world rotation after walking
             for (let i = 0; i <= numPoints; i++) {
                 const t = i / numPoints;
                 const pos = interpolateGreatCircle(homeLocation.lat, homeLocation.lon, destCity.lat, destCity.lon, t);
-                points.push(geoToSphere(pos.lat, pos.lon));
+                points.push(geoToSphereRotated(pos.lat, pos.lon));
             }
 
             // Create simple line geometry (clean, no jagged edges)
@@ -1693,7 +1707,8 @@
             const marker = new THREE.Sprite(mat);
             marker.scale.set(0.02, 0.02, 1);
 
-            const pos = geoToSphere(lat, lon);
+            // Use rotated position to account for world rotation after walking
+            const pos = geoToSphereRotated(lat, lon);
             marker.position.copy(pos).multiplyScalar(1.002);
 
             return marker;
