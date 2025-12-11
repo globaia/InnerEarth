@@ -608,7 +608,7 @@
             <label style="font-size:10px;color:#666;">Character height: <span id="char-height-display">50 km</span></label>
             <input type="range" id="char-height-slider" min="0" max="100" value="40" style="width:100%;">
             <div style="font-size:9px;color:#555;margin:4px 0 0 0;">Use WASD to walk, camera follows from behind</div>
-            <button class="btn-secondary" id="set-new-home-btn" style="margin-top:8px;width:100%;font-size:10px;">Set Current Location as Home</button>
+            <button class="btn-secondary" id="set-new-home-btn" style="margin-top:8px;width:100%;font-size:10px;">Set Character Location as Home</button>
             <div id="new-home-status" style="font-size:9px;color:#0af;margin-top:4px;display:none;"></div>
         </div>
 
@@ -905,16 +905,10 @@
             return new THREE.Vector3(x, y, z);
         }
 
+        // Convert lat/lon to sphere position (relative to buildNadir, the nadir when world was built)
         function geoToSphere(lat, lon) {
-            const dist = angularDistance(nadir.lat, nadir.lon, lat, lon);
-            const az = azimuth(nadir.lat, nadir.lon, lat, lon);
-            return distanceToSphere(dist, az);
-        }
-
-        // Convert lat/lon to sphere position relative to homeLocation (for Great Circle)
-        function geoToSphereFromHome(lat, lon) {
-            const dist = angularDistance(homeLocation.lat, homeLocation.lon, lat, lon);
-            const az = azimuth(homeLocation.lat, homeLocation.lon, lat, lon);
+            const dist = angularDistance(buildNadir.lat, buildNadir.lon, lat, lon);
+            const az = azimuth(buildNadir.lat, buildNadir.lon, lat, lon);
             return distanceToSphere(dist, az);
         }
 
