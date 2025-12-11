@@ -265,7 +265,29 @@
     </div>
 
     <div class="controls">
-        <h3>Cities</h3>
+        <h4 style="margin-top:0;">Home Location</h4>
+        <div class="autocomplete-container">
+            <input type="text" id="home-city-input" placeholder="Type city name..." style="width:100%;">
+            <div class="autocomplete-results" id="home-autocomplete"></div>
+        </div>
+        <div style="margin-top:6px;display:flex;gap:6px;">
+            <button class="btn-primary" id="home-set-btn" style="font-size:10px;padding:4px 12px;">Set</button>
+            <button class="btn-secondary" id="locate" style="font-size:10px;">📍 GPS</button>
+        </div>
+        <div id="home-selected" style="margin-top:4px;font-size:11px;color:#f44;display:none;"></div>
+        <div id="location-help" style="display:none;margin-top:6px;padding:8px;background:#331a00;border-radius:4px;font-size:10px;color:#ffaa00;">
+            <strong>Location unavailable</strong><br>
+            <span id="location-help-safari" style="display:none;">
+                Safari: Settings → Privacy → Location Services → Safari Websites → Allow<br>
+                Then reload this page.
+            </span>
+            <span id="location-help-other">
+                Check browser settings → Site permissions → Location → Allow for this site
+            </span>
+            <br><button class="btn-secondary" style="margin-top:6px;font-size:9px;" onclick="document.getElementById('location-help').style.display='none'">Dismiss</button>
+        </div>
+
+        <h4>Cities</h4>
         <select id="location-select">
             <option value="">-- Select City --</option>
             <optgroup label="Europe">
@@ -334,25 +356,16 @@
                 <option value="-17.7134,178.065">Fiji</option>
             </optgroup>
         </select>
-        <div style="margin-top:6px;">
-            <button class="btn-secondary" id="locate">My Location</button>
-            <div id="location-help" style="display:none;margin-top:6px;padding:8px;background:#331a00;border-radius:4px;font-size:10px;color:#ffaa00;">
-                <strong>Location unavailable</strong><br>
-                <span id="location-help-safari" style="display:none;">
-                    Safari: Settings → Privacy → Location Services → Safari Websites → Allow<br>
-                    Then reload this page.
-                </span>
-                <span id="location-help-other">
-                    Check browser settings → Site permissions → Location → Allow for this site
-                </span>
-                <br><button class="btn-secondary" style="margin-top:6px;font-size:9px;" onclick="document.getElementById('location-help').style.display='none'">Dismiss</button>
-            </div>
-        </div>
 
         <h4>Altitude</h4>
         <label>Altitude: <span id="altitude-display">0 m</span></label>
         <input type="range" id="altitude-slider" min="0" max="100" value="0">
         <div style="font-size:10px;color:#666;">0 = surface | 100 = center</div>
+
+        <h4>Walking Speed</h4>
+        <label>Speed: <span id="walk-speed-display">5 km/h</span></label>
+        <input type="range" id="walk-speed-slider" min="0" max="100" value="25">
+        <div style="font-size:10px;color:#666;">Walking (5) → Running (40) → Driving (120) → Flight (1000+)</div>
 
         <h4>Display</h4>
         <div class="checkbox-row">
@@ -413,6 +426,17 @@
 
         <button class="btn-secondary" id="set-default-btn" style="margin-top:10px;width:100%;">Set Default View</button>
 
+        <h4>Character</h4>
+        <div class="checkbox-row">
+            <input type="checkbox" id="character-toggle">
+            <label for="character-toggle" style="margin:0;color:#aaa;">Show walking character (C key)</label>
+        </div>
+        <div id="character-controls" style="display:none;margin-top:6px;">
+            <label style="font-size:10px;color:#666;">Character height: <span id="char-height-display">100 km</span></label>
+            <input type="range" id="char-height-slider" min="0" max="100" value="50" style="width:100%;">
+            <div style="font-size:9px;color:#555;margin:4px 0 0 0;">Use WASD to walk, camera follows from behind</div>
+        </div>
+
         <h4>Line Animation</h4>
         <div class="checkbox-row">
             <input type="checkbox" id="line-animation-toggle">
@@ -447,7 +471,8 @@
     <div class="help">
         <strong>Drag</strong> to look around •
         <strong>Click city</strong> to travel •
-        <strong>WASD/Arrows</strong> to walk (ground level)
+        <strong>WASD/Arrows</strong> to walk •
+        <strong>C</strong> for character view
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -648,6 +673,19 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
 
+        // Add lighting for 3D character visibility
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // Hemisphere light for natural indoor lighting (sky/ground colors)
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.4);
+        scene.add(hemiLight);
+
+        // Directional light that follows the camera
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(0, 1, 1);
+        scene.add(dirLight);
+
         const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.001, 2000);
         // Start very close to surface (0.001 units ≈ 12m at Earth scale)
         const SURFACE_RADIUS = SPHERE_RADIUS * 0.999;  // Where content is rendered
@@ -761,6 +799,12 @@
         let satelliteSphere = null, satelliteVisible = false, satelliteTexture = null;
         let dayNightSphere = null;
 
+        // === World Group for Smooth Walking ===
+        // All sphere content goes in worldGroup, which can be rotated for smooth walking
+        let worldGroup = null;
+        let worldRotation = new THREE.Quaternion();  // Accumulated rotation from walking
+        let buildNadir = { lat: 48.8566, lon: 2.3522 };  // Nadir when worldGroup was built
+
         // === Sun Position Calculation (simplified astronomical calculation) ===
         function getSunPosition(date) {
             // Calculate solar declination and hour angle for sun position
@@ -783,7 +827,8 @@
         // === Day/Night Sphere (outer sphere with gradient terminator) ===
         function createDayNightSphere() {
             if (dayNightSphere) {
-                scene.remove(dayNightSphere);
+                if (worldGroup) worldGroup.remove(dayNightSphere);
+                else scene.remove(dayNightSphere);
                 dayNightSphere.geometry?.dispose();
                 dayNightSphere.material?.dispose();
             }
@@ -860,7 +905,8 @@
             });
 
             dayNightSphere = new THREE.Mesh(geo, mat);
-            scene.add(dayNightSphere);
+            if (worldGroup) worldGroup.add(dayNightSphere);
+            else scene.add(dayNightSphere);
         }
 
         function updateDayNight() {
@@ -880,7 +926,8 @@
 
         function createSatelliteMesh() {
             if (satelliteSphere) {
-                scene.remove(satelliteSphere);
+                if (worldGroup) worldGroup.remove(satelliteSphere);
+                else scene.remove(satelliteSphere);
                 satelliteSphere.geometry?.dispose();
                 satelliteSphere.material?.dispose();
             }
@@ -924,13 +971,15 @@
                 blending: THREE.AdditiveBlending  // Blend with vectors
             }));
             satelliteSphere.visible = satelliteVisible;
-            scene.add(satelliteSphere);
+            if (worldGroup) worldGroup.add(satelliteSphere);
+            else scene.add(satelliteSphere);
         }
 
         // === Home Marker (Red House) - uses sprite for constant screen size ===
         function createHomeMarker() {
             if (homeMarkerMesh) {
-                scene.remove(homeMarkerMesh);
+                if (worldGroup) worldGroup.remove(homeMarkerMesh);
+                else scene.remove(homeMarkerMesh);
                 homeMarkerMesh.material?.map?.dispose();
                 homeMarkerMesh.material?.dispose();
             }
@@ -974,7 +1023,8 @@
             homeMarkerMesh.position.copy(pos).multiplyScalar(1.002);  // Slightly outside surface
 
             homeMarkerMesh.visible = showHomeMarker;
-            scene.add(homeMarkerMesh);
+            if (worldGroup) worldGroup.add(homeMarkerMesh);
+            else scene.add(homeMarkerMesh);
 
             // Create antipode marker
             createAntipodeMarker();
@@ -982,12 +1032,14 @@
 
         function createAntipodeMarker() {
             if (antipodeMarkerMesh) {
-                scene.remove(antipodeMarkerMesh);
+                if (worldGroup) worldGroup.remove(antipodeMarkerMesh);
+                else scene.remove(antipodeMarkerMesh);
                 antipodeMarkerMesh.material?.map?.dispose();
                 antipodeMarkerMesh.material?.dispose();
             }
             if (antipodeLabelSprite) {
-                scene.remove(antipodeLabelSprite);
+                if (worldGroup) worldGroup.remove(antipodeLabelSprite);
+                else scene.remove(antipodeLabelSprite);
                 antipodeLabelSprite.material?.map?.dispose();
                 antipodeLabelSprite.material?.dispose();
             }
@@ -1026,7 +1078,8 @@
             antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);  // Slightly outside surface
 
             antipodeMarkerMesh.visible = showHomeMarker;
-            scene.add(antipodeMarkerMesh);
+            if (worldGroup) worldGroup.add(antipodeMarkerMesh);
+            else scene.add(antipodeMarkerMesh);
 
             // Create ANTIPODE label (3x bigger)
             const labelCanvas = document.createElement('canvas');
@@ -1063,13 +1116,15 @@
             antipodeLabelSprite.position.copy(pos).multiplyScalar(1.002);  // Same as marker
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
-            scene.add(antipodeLabelSprite);
+            if (worldGroup) worldGroup.add(antipodeLabelSprite);
+            else scene.add(antipodeLabelSprite);
         }
 
         // === Subjective Grid (You = South Pole, Antipode = North Pole) ===
         function createSubjectiveGrid() {
             if (subjectiveGridGroup) {
-                scene.remove(subjectiveGridGroup);
+                if (worldGroup) worldGroup.remove(subjectiveGridGroup);
+                else scene.remove(subjectiveGridGroup);
                 subjectiveGridGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
             }
 
@@ -1111,7 +1166,8 @@
             }
 
             subjectiveGridGroup.visible = showSubjectiveGrid;
-            scene.add(subjectiveGridGroup);
+            if (worldGroup) worldGroup.add(subjectiveGridGroup);
+            else scene.add(subjectiveGridGroup);
         }
 
         // === Cities (using sprites for constant screen size) ===
@@ -1137,7 +1193,8 @@
 
         function createCities() {
             if (citiesGroup) {
-                scene.remove(citiesGroup);
+                if (worldGroup) worldGroup.remove(citiesGroup);
+                else scene.remove(citiesGroup);
                 citiesGroup.traverse(o => {
                     o.material?.map?.dispose();
                     o.material?.dispose();
@@ -1167,7 +1224,8 @@
             });
 
             citiesGroup.visible = showCities;
-            scene.add(citiesGroup);
+            if (worldGroup) worldGroup.add(citiesGroup);
+            else scene.add(citiesGroup);
         }
 
         // === Text Labels (cities, home, antipode) ===
@@ -1214,7 +1272,8 @@
 
         function createLabels() {
             if (labelsGroup) {
-                scene.remove(labelsGroup);
+                if (worldGroup) worldGroup.remove(labelsGroup);
+                else scene.remove(labelsGroup);
                 labelsGroup.traverse(o => {
                     o.material?.map?.dispose();
                     o.material?.dispose();
@@ -1246,17 +1305,20 @@
             });
 
             labelsGroup.visible = showLabels;
-            scene.add(labelsGroup);
+            if (worldGroup) worldGroup.add(labelsGroup);
+            else scene.add(labelsGroup);
         }
 
         // === Great Circle Functions ===
         function initGreatCircleGroup() {
             if (greatCircleGroup) {
-                scene.remove(greatCircleGroup);
+                if (worldGroup) worldGroup.remove(greatCircleGroup);
+                else scene.remove(greatCircleGroup);
                 greatCircleGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
             }
             greatCircleGroup = new THREE.Group();
-            scene.add(greatCircleGroup);
+            if (worldGroup) worldGroup.add(greatCircleGroup);
+            else scene.add(greatCircleGroup);
         }
 
         function calculateGreatCircleKm(lat1, lon1, lat2, lon2) {
@@ -1614,10 +1676,232 @@
             distEl.style.display = 'block';
         }
 
+        // === Geocoding API (OpenStreetMap Nominatim) ===
+        let geocodeTimeout = null;
+        const GEOCODE_DELAY = 400;  // Debounce delay in ms
+
+        async function searchNominatim(query) {
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1`;
+                const response = await fetch(url, {
+                    headers: { 'User-Agent': 'InnerEarth/1.0' }  // Required by Nominatim
+                });
+                const data = await response.json();
+                return data.map(item => ({
+                    name: item.name || item.display_name.split(',')[0],
+                    country: item.address?.country || '',
+                    region: item.address?.state || item.address?.region || '',
+                    lat: parseFloat(item.lat),
+                    lon: parseFloat(item.lon),
+                    displayName: item.display_name,
+                    isOnline: true  // Mark as online result
+                }));
+            } catch (err) {
+                console.error('Geocoding error:', err);
+                return [];
+            }
+        }
+
+        // === Home Location Autocomplete ===
+        let pendingHomeCity = null;  // City selected from autocomplete, waiting for "Set" button
+        let lastHomeMatches = [];    // Store matches for reference
+
+        function setupHomeAutocomplete() {
+            const input = document.getElementById('home-city-input');
+            const results = document.getElementById('home-autocomplete');
+            const setBtn = document.getElementById('home-set-btn');
+            let selectedIndex = -1;
+
+            // Show results from local database + online search
+            async function updateResults(query) {
+                // First, show local matches immediately
+                const localMatches = WORLD_CITIES.filter(city =>
+                    normalizeText(city.name).includes(query) ||
+                    normalizeText(city.country).includes(query)
+                ).slice(0, 5);
+
+                // Display local results immediately
+                displayMatches(localMatches, true);
+
+                // Then search online for more results (debounced)
+                if (query.length >= 3) {
+                    clearTimeout(geocodeTimeout);
+                    geocodeTimeout = setTimeout(async () => {
+                        const onlineMatches = await searchNominatim(input.value.trim());
+                        // Combine local + online, removing duplicates
+                        const combined = [...localMatches];
+                        onlineMatches.forEach(online => {
+                            const isDuplicate = localMatches.some(local =>
+                                Math.abs(local.lat - online.lat) < 0.01 &&
+                                Math.abs(local.lon - online.lon) < 0.01
+                            );
+                            if (!isDuplicate) {
+                                combined.push(online);
+                            }
+                        });
+                        displayMatches(combined.slice(0, 10), false);
+                    }, GEOCODE_DELAY);
+                }
+            }
+
+            function displayMatches(matches, isLoading) {
+                lastHomeMatches = matches;
+
+                if (matches.length === 0 && !isLoading) {
+                    results.innerHTML = '<div class="autocomplete-item" style="color:#888;pointer-events:none;">No results found</div>';
+                    results.classList.add('show');
+                    return;
+                }
+
+                if (matches.length === 0) {
+                    results.classList.remove('show');
+                    return;
+                }
+
+                results.innerHTML = matches.map((city, i) => {
+                    const location = city.region ? `${city.region}, ${city.country}` : city.country;
+                    const icon = city.isOnline ? '🌐' : '📍';
+                    return `
+                        <div class="autocomplete-item" data-index="${i}">
+                            ${icon} ${city.name} <span class="country">${location}</span>
+                        </div>
+                    `;
+                }).join('') + (isLoading ? '<div class="autocomplete-item" style="color:#888;pointer-events:none;">Searching online...</div>' : '');
+
+                results.classList.add('show');
+                selectedIndex = -1;
+
+                // Click handlers - select city from dropdown
+                results.querySelectorAll('.autocomplete-item[data-index]').forEach((item, i) => {
+                    item.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        pendingHomeCity = matches[i];
+                        const displayText = matches[i].region
+                            ? `${matches[i].name}, ${matches[i].region}, ${matches[i].country}`
+                            : `${matches[i].name}, ${matches[i].country}`;
+                        input.value = displayText;
+                        results.classList.remove('show');
+                        console.log('Selected city:', matches[i].name, matches[i].lat, matches[i].lon);
+                    });
+                });
+            }
+
+            input.addEventListener('input', () => {
+                const query = normalizeText(input.value.trim());
+
+                if (query.length < 2) {
+                    results.classList.remove('show');
+                    lastHomeMatches = [];
+                    clearTimeout(geocodeTimeout);
+                    return;
+                }
+
+                updateResults(query);
+            });
+
+            input.addEventListener('keydown', (e) => {
+                const items = results.querySelectorAll('.autocomplete-item[data-index]');
+
+                if (e.key === 'ArrowDown' && results.classList.contains('show') && items.length > 0) {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelection(items);
+                } else if (e.key === 'ArrowUp' && results.classList.contains('show') && items.length > 0) {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelection(items);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (results.classList.contains('show') && selectedIndex >= 0 && lastHomeMatches[selectedIndex]) {
+                        // Select from dropdown
+                        pendingHomeCity = lastHomeMatches[selectedIndex];
+                        const city = pendingHomeCity;
+                        const displayText = city.region
+                            ? `${city.name}, ${city.region}, ${city.country}`
+                            : `${city.name}, ${city.country}`;
+                        input.value = displayText;
+                        results.classList.remove('show');
+                    } else if (pendingHomeCity) {
+                        // Confirm already selected city
+                        confirmHomeCity();
+                    }
+                } else if (e.key === 'Escape') {
+                    results.classList.remove('show');
+                }
+            });
+
+            function updateSelection(items) {
+                items.forEach((item, i) => {
+                    item.classList.toggle('selected', i === selectedIndex);
+                });
+            }
+
+            // Set button click handler
+            setBtn.addEventListener('click', () => {
+                console.log('Set button clicked, pendingHomeCity:', pendingHomeCity);
+                if (pendingHomeCity) {
+                    confirmHomeCity();
+                } else {
+                    // Try to find a city matching the input text
+                    const inputText = normalizeText(input.value.trim());
+                    const match = WORLD_CITIES.find(city =>
+                        normalizeText(`${city.name}, ${city.country}`) === inputText ||
+                        normalizeText(city.name) === inputText
+                    );
+                    if (match) {
+                        pendingHomeCity = match;
+                        confirmHomeCity();
+                    } else {
+                        // Flash the input to indicate selection needed
+                        input.style.borderColor = '#f44';
+                        input.placeholder = 'Select a city first...';
+                        setTimeout(() => {
+                            input.style.borderColor = '';
+                            input.placeholder = 'Type city name...';
+                        }, 1500);
+                    }
+                }
+            });
+
+            // Close on outside click (but not when clicking Set button)
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('#home-city-input') &&
+                    !e.target.closest('#home-autocomplete') &&
+                    !e.target.closest('#home-set-btn')) {
+                    results.classList.remove('show');
+                }
+            });
+        }
+
+        function confirmHomeCity() {
+            if (!pendingHomeCity) return;
+
+            const city = pendingHomeCity;
+            console.log('Confirming home city:', city.name, city.lat, city.lon);
+
+            // Set as home location
+            homeLocation = { lat: city.lat, lon: city.lon };
+
+            // Show selected location with region if available
+            const selectedDisplay = document.getElementById('home-selected');
+            const locationText = city.region
+                ? `${city.name}, ${city.region}`
+                : `${city.name}, ${city.country}`;
+            selectedDisplay.innerHTML = `⌂ ${locationText}`;
+            selectedDisplay.style.display = 'block';
+
+            // Navigate to the location
+            setLocation(city.lat, city.lon, true);
+
+            // Clear pending
+            pendingHomeCity = null;
+        }
+
         // === Geographic Grid ===
         function createGraticule() {
             if (geoGridGroup) {
-                scene.remove(geoGridGroup);
+                if (worldGroup) worldGroup.remove(geoGridGroup);
+                else scene.remove(geoGridGroup);
                 geoGridGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
             }
 
@@ -1687,7 +1971,8 @@
             }
 
             geoGridGroup.visible = showGeoGrid;
-            scene.add(geoGridGroup);
+            if (worldGroup) worldGroup.add(geoGridGroup);
+            else scene.add(geoGridGroup);
         }
 
         // === Coastlines ===
@@ -1747,26 +2032,41 @@
             sphereGroup = new THREE.Group();
             createGraticule();
             loadCoastlines();
-            scene.add(sphereGroup);
+            // sphereGroup is added to worldGroup, not directly to scene
             loading.style.display = 'none';
         }
 
         function rebuildAll() {
-            // Rebuild sphere content
-            if (sphereGroup) {
-                scene.remove(sphereGroup);
-                sphereGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+            // Remove old world group
+            if (worldGroup) {
+                scene.remove(worldGroup);
+                worldGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
             }
-            createSphereContent();
 
-            // Rebuild other layers
+            // Create fresh world group
+            worldGroup = new THREE.Group();
+            worldRotation.identity();  // Reset rotation
+            buildNadir = { lat: nadir.lat, lon: nadir.lon };  // Store nadir at build time
+            scene.add(worldGroup);
+
+            // Rebuild sphere content
+            sphereGroup = new THREE.Group();
+            createGraticule();
+            loadCoastlines();
+            worldGroup.add(sphereGroup);
+
+            // Rebuild other layers - add to worldGroup
             createSubjectiveGrid();
             createCities();
             createLabels();
             createHomeMarker();
             if (satelliteVisible) createSatelliteMesh();
             if (showDayNight) createDayNightSphere();
+            initGreatCircleGroup();
             rebuildGreatCircles();
+
+            // Hide loading indicator
+            loading.style.display = 'none';
         }
 
         // === Altitude (Logarithmic) ===
@@ -2058,6 +2358,26 @@
             const helpEl = document.getElementById('location-help');
             helpEl.style.display = 'none';  // Hide any previous help
 
+            console.log('Location button clicked');
+
+            // Check if running from file:// protocol (geolocation won't work)
+            if (window.location.protocol === 'file:') {
+                btn.textContent = 'Needs server';
+                helpEl.innerHTML = `
+                    <div style="color:#fa0;font-size:11px;margin-top:8px;">
+                        <strong>Geolocation requires a web server.</strong><br>
+                        Open via http:// or https://, not file://<br>
+                        <br>
+                        Quick fix: Run in terminal:<br>
+                        <code style="background:#333;padding:2px 4px;border-radius:3px;">python3 -m http.server 8000</code><br>
+                        Then open <a href="http://localhost:8000" style="color:#0af;">localhost:8000</a>
+                    </div>
+                `;
+                helpEl.style.display = 'block';
+                setTimeout(() => { btn.textContent = originalText; }, 3000);
+                return;
+            }
+
             if (!navigator.geolocation) {
                 btn.textContent = 'Not supported';
                 setTimeout(() => { btn.textContent = originalText; }, 2000);
@@ -2090,18 +2410,19 @@
             // Request location - this will prompt for permission if state is 'prompt'
             btn.textContent = 'Locating...';
             btn.disabled = true;
+            console.log('Requesting geolocation...');
 
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     // Success - store and navigate to location
                     homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                    console.log('Location acquired:', pos.coords.latitude, pos.coords.longitude);
                     setLocation(pos.coords.latitude, pos.coords.longitude, true);
                     btn.textContent = originalText;
                     btn.disabled = false;
-                    console.log('Location acquired:', pos.coords.latitude, pos.coords.longitude);
                 },
                 err => {
-                    console.log('Location error:', err.code, err.message);
+                    console.error('Location error:', err.code, err.message);
                     btn.disabled = false;
 
                     if (err.code === 1) {
@@ -2445,6 +2766,40 @@
 
         // Initialize autocomplete
         setupAutocomplete();
+        setupHomeAutocomplete();
+
+        // === Character Toggle ===
+        document.getElementById('character-toggle').addEventListener('change', e => {
+            characterMode = e.target.checked;
+            document.getElementById('character-controls').style.display = characterMode ? 'block' : 'none';
+
+            if (characterMode) {
+                if (!characterLoaded) {
+                    loadCharacter();
+                }
+                if (character) character.visible = true;
+            } else {
+                if (character) character.visible = false;
+            }
+        });
+
+        document.getElementById('char-height-slider').addEventListener('input', e => {
+            // Logarithmic scale: 0-100 maps to 10km to 500km
+            const t = parseInt(e.target.value) / 100;
+            characterHeightKm = 10 * Math.pow(50, t);  // 10 to 500 km
+
+            const display = document.getElementById('char-height-display');
+            if (characterHeightKm < 100) {
+                display.textContent = Math.round(characterHeightKm) + ' km';
+            } else {
+                display.textContent = Math.round(characterHeightKm) + ' km';
+            }
+
+            // Recreate character with new size
+            if (characterLoaded) {
+                loadCharacter();
+            }
+        });
 
         // === Window Resize ===
         window.addEventListener('resize', () => {
@@ -2456,10 +2811,40 @@
         // === Walking Controls (WASD / Arrow Keys) - Hamster Ball Style ===
         // Walking moves your position on Earth's surface while keeping you at the center of the sphere
         const GROUND_LEVEL_KM = 50;  // Walking enabled below 50km altitude for smoother experience
-        const WALK_SPEED = 0.015;  // Degrees per frame - smooth walking speed
+
+        // Speed calculation:
+        // Earth circumference = 40,075 km, so 1 degree = 111.32 km
+        // At 60 fps, degrees per frame = (km/h) / (111.32 * 3600) * 60 = km/h / 6679.2
+        // Or: degrees per frame = km/h * 0.0001497
+        const KMH_TO_DEG_PER_FRAME = 1 / (111.32 * 60);  // Convert km/h to degrees per frame at 60fps
+        let walkSpeedKmh = 5;  // Default 5 km/h (walking pace)
         const keysPressed = { forward: false, backward: false, left: false, right: false };
         let isWalking = false;
         let walkFrameCount = 0;
+
+        // Speed slider handler
+        function updateWalkSpeed(sliderValue) {
+            // Logarithmic scale: 0-100 maps to ~1 km/h to ~10,000 km/h
+            // This allows fine control at walking speeds but also supersonic flight
+            const t = sliderValue / 100;
+            walkSpeedKmh = 1 * Math.pow(10000, t);  // 1 to 10,000 km/h
+
+            // Display with appropriate formatting
+            const display = document.getElementById('walk-speed-display');
+            if (walkSpeedKmh < 10) {
+                display.textContent = walkSpeedKmh.toFixed(1) + ' km/h';
+            } else if (walkSpeedKmh < 1000) {
+                display.textContent = Math.round(walkSpeedKmh) + ' km/h';
+            } else {
+                display.textContent = (walkSpeedKmh / 1000).toFixed(1) + 'k km/h';
+            }
+        }
+
+        document.getElementById('walk-speed-slider').addEventListener('input', e => {
+            updateWalkSpeed(parseInt(e.target.value));
+        });
+        // Initialize with default value
+        updateWalkSpeed(25);  // ~5 km/h walking speed
 
         function startWalking() {
             if (!isWalking && currentAltitudeKm <= GROUND_LEVEL_KM) {
@@ -2501,14 +2886,20 @@
                     e.preventDefault();
                     break;
                 case 'c':
-                    // Toggle character mode
-                    if (characterLoaded) {
-                        characterMode = !characterMode;
-                        console.log('Character mode:', characterMode ? 'ON' : 'OFF');
-                        if (characterMode) {
-                            character.visible = true;
+                    // Toggle character mode - sync with checkbox
+                    characterMode = !characterMode;
+                    document.getElementById('character-toggle').checked = characterMode;
+                    document.getElementById('character-controls').style.display = characterMode ? 'block' : 'none';
+
+                    if (characterMode) {
+                        if (!characterLoaded) {
+                            loadCharacter();
                         }
+                        if (character) character.visible = true;
+                    } else {
+                        if (character) character.visible = false;
                     }
+                    console.log('Character mode:', characterMode ? 'ON' : 'OFF');
                     break;
             }
         });
@@ -2534,14 +2925,15 @@
             }
         });
 
-        // Convert a direction in camera space to lat/lon movement
+        // Convert a direction in camera space to world rotation
         // In the InnerEarth view, camera looks outward from center
-        // Forward (looking direction) should move nadir OPPOSITE to where you look
+        // Forward (W key) should rotate world so you walk toward what you see
         // (like a hamster ball - you walk toward what you see, so the ball rolls that way)
         function updateWalking() {
             // Only walk at ground level (unless in character mode where we always allow walking)
             if (!characterMode && currentAltitudeKm > GROUND_LEVEL_KM) return;
             if (!keysPressed.forward && !keysPressed.backward && !keysPressed.left && !keysPressed.right) return;
+            if (!worldGroup) return;
 
             walkFrameCount++;
 
@@ -2550,7 +2942,8 @@
             const rightDir = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraQuat);
 
             // Build movement vector based on keys
-            // Forward = move toward where you're looking (nadir moves in look direction on sphere)
+            // Forward (W) = move toward where you're looking
+            // Backward (S) = move away from where you're looking
             let moveDir = new THREE.Vector3(0, 0, 0);
             if (keysPressed.forward) moveDir.add(lookDir);
             if (keysPressed.backward) moveDir.sub(lookDir);
@@ -2561,188 +2954,436 @@
             moveDir.normalize();
 
             // Project movement onto the horizontal plane (XZ in world coords)
-            // This gives us the direction to move on the sphere surface
             const horizMove = new THREE.Vector3(moveDir.x, 0, moveDir.z);
             if (horizMove.lengthSq() < 0.001) {
-                // Moving straight up/down - use vertical component to adjust latitude only
-                const latChange = moveDir.y * WALK_SPEED;
-                nadir.lat = Math.max(-89.9, Math.min(89.9, nadir.lat - latChange));
+                // Looking straight up/down - use vertical component for movement
+                const speedDeg = walkSpeedKmh * KMH_TO_DEG_PER_FRAME;
+                const angleRad = moveDir.y * speedDeg * DEG2RAD;
+                const rotQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -angleRad);
+                worldRotation.premultiply(rotQuat);
+                worldGroup.quaternion.copy(worldRotation);
+                syncNadirFromRotation();
                 updateInfo();
                 return;
             }
             horizMove.normalize();
 
-            // Speed scales with altitude (slower near ground for fine control)
-            const speedMultiplier = 0.5 + currentAltitudeKm * 0.5;
-            const speed = WALK_SPEED * speedMultiplier;
+            // Calculate speed in degrees per frame from km/h
+            const speedDeg = walkSpeedKmh * KMH_TO_DEG_PER_FRAME;
+            const angleRad = speedDeg * DEG2RAD;
 
+            // Create rotation around the axis perpendicular to movement direction
+            // To walk FORWARD (toward what you see), the world must rotate so that
+            // content in front of you moves DOWN (toward your feet)
+            //
             // In our coordinate system:
-            // +X is East, -X is West (affects longitude)
-            // +Z is North, -Z is South (affects latitude)
-            // But we're inside the sphere, so directions are inverted
-            // Walking "forward" (toward where you look) should move nadir that direction
+            // - Camera at center, looking outward
+            // - horizMove points in the direction we want to walk
+            // - We need to rotate the world so content moves opposite to our walk direction
+            //
+            // Rotation axis is perpendicular to both Y-axis and movement direction
+            // INVERTED: positive rotation brings content in horizMove direction DOWN to us
+            const rotAxis = new THREE.Vector3(horizMove.z, 0, -horizMove.x).normalize();
+            const rotQuat = new THREE.Quaternion().setFromAxisAngle(rotAxis, angleRad);
 
-            // Calculate bearing from current position based on horizontal movement direction
-            // horizMove.z corresponds to North/South (latitude change)
-            // horizMove.x corresponds to East/West (longitude change)
+            // Apply incremental rotation
+            worldRotation.premultiply(rotQuat);
+            worldGroup.quaternion.copy(worldRotation);
 
-            // Move nadir in the direction we're walking
-            // Positive Z = looking "north" in world = move nadir north = increase latitude
-            // Positive X = looking "east" in world = move nadir east = increase longitude
-
-            const latChange = horizMove.z * speed;
-            const lonChange = horizMove.x * speed / Math.max(0.1, Math.cos(nadir.lat * DEG2RAD)); // Adjust for latitude
-
-            let newLat = nadir.lat + latChange;
-            let newLon = nadir.lon + lonChange;
-
-            // Clamp latitude
-            newLat = Math.max(-89.9, Math.min(89.9, newLat));
-
-            // Wrap longitude
-            if (newLon > 180) newLon -= 360;
-            if (newLon < -180) newLon += 360;
-
-            nadir.lat = newLat;
-            nadir.lon = newLon;
-
-            // Update visual elements that depend on nadir position
-            // Move markers and grids smoothly
-            if (homeMarkerMesh) {
-                const pos = geoToSphere(nadir.lat, nadir.lon);
-                homeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
-            }
-            if (antipodeMarkerMesh) {
-                const antipodeLat = -nadir.lat;
-                const antipodeLon = nadir.lon > 0 ? nadir.lon - 180 : nadir.lon + 180;
-                const pos = geoToSphere(antipodeLat, antipodeLon);
-                antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);
-                // Also update label position (sprite center handles the "above" offset)
-                if (antipodeLabelSprite) {
-                    antipodeLabelSprite.position.copy(pos).multiplyScalar(1.002);
-                }
-            }
-
+            // Sync nadir coordinates from world rotation
+            syncNadirFromRotation();
             updateInfo();
         }
 
-        // === Character System (3D Walking Character) ===
+        // Sync nadir lat/lon from worldGroup rotation
+        // The sphere was built with buildNadir at the bottom (0, -R, 0)
+        // After rotating worldGroup, we need to compute what geo location is now at the bottom
+        function syncNadirFromRotation() {
+            // The viewer is always at (0, -R, 0) looking up
+            // After rotating worldGroup, a different geo location is at that position
+            // We need to find which geo point has rotated TO the bottom
+
+            // In unrotated state, buildNadir is at (0, -R, 0)
+            // After rotation, the point that's now at (0, -R, 0) corresponds to a different geo
+
+            // Apply INVERSE rotation to the nadir position to find where it came from
+            const nadirWorldPos = new THREE.Vector3(0, -SPHERE_RADIUS * 0.999, 0);
+            const invRotation = worldRotation.clone().invert();
+            const originalPos = nadirWorldPos.clone().applyQuaternion(invRotation);
+
+            // This position in the unrotated frame corresponds to some geo coordinate
+            // The sphere was built with buildNadir at (0, -R, 0)
+            // We need to convert originalPos back to lat/lon
+
+            // In the unrotated coordinate system:
+            // The bottom (0, -R, 0) is buildNadir
+            // The top (0, +R, 0) is the antipode of buildNadir
+            // XZ plane represents movement in lat/lon from buildNadir
+
+            // originalPos tells us the offset from buildNadir in 3D space
+            // We need to convert this to geo coordinates
+
+            // Compute the angular offset from bottom (buildNadir position)
+            // phi = angle from -Y axis (0 at bottom, PI at top)
+            const r = originalPos.length();
+            const y = originalPos.y / r;  // cos(phi) where phi is angle from -Y
+            const phi = Math.acos(-y);  // Angle from -Y axis (bottom)
+
+            // The angular distance from buildNadir on the sphere
+            const angularDistDeg = phi * RAD2DEG;
+
+            // Azimuth in XZ plane (direction from buildNadir)
+            const azimuthRad = Math.atan2(originalPos.x, originalPos.z);
+
+            // Now compute the new geo coordinates using great circle navigation
+            // Starting from buildNadir, travel angularDistDeg in direction azimuthRad
+            const startLat = buildNadir.lat * DEG2RAD;
+            const startLon = buildNadir.lon * DEG2RAD;
+            const d = angularDistDeg * DEG2RAD;  // Angular distance in radians
+            const bearing = azimuthRad;
+
+            // Great circle destination formula
+            const newLatRad = Math.asin(
+                Math.sin(startLat) * Math.cos(d) +
+                Math.cos(startLat) * Math.sin(d) * Math.cos(bearing)
+            );
+            const newLonRad = startLon + Math.atan2(
+                Math.sin(bearing) * Math.sin(d) * Math.cos(startLat),
+                Math.cos(d) - Math.sin(startLat) * Math.sin(newLatRad)
+            );
+
+            let newLat = newLatRad * RAD2DEG;
+            let newLon = newLonRad * RAD2DEG;
+
+            // Normalize longitude
+            if (newLon > 180) newLon -= 360;
+            if (newLon < -180) newLon += 360;
+
+            nadir.lat = Math.max(-89.9, Math.min(89.9, newLat));
+            nadir.lon = newLon;
+        }
+
+        // === Character System (FBX Model with Animations) ===
         let character = null;
-        let characterMixer = null;
-        let characterAction = null;
+        let characterMixer = null;  // Animation mixer
+        let characterAnimations = {};  // Store loaded animations
+        let currentAnimation = null;
         let characterLoaded = false;
         let characterMode = false;  // When true, camera follows character in 3rd person
-        const CHARACTER_HEIGHT_KM = 50;  // 50km tall giant for testing
-        const CHARACTER_SCALE = (CHARACTER_HEIGHT_KM / 12742) * SPHERE_RADIUS * 2;  // Convert km to scene units
+        let characterHeightKm = 100;  // Default 100km tall (visible from space view)
+        let walkAnimPhase = 0;  // Fallback animation phase for stick figure
+        let useFBXCharacter = true;  // Try to load FBX, fallback to stick figure
+
+        // Calculate character scale from km height
+        function getCharacterScale() {
+            return (characterHeightKm / EARTH_RADIUS_KM) * SPHERE_RADIUS;
+        }
 
         // Camera offset for 3rd person view (behind and above character)
-        const CAMERA_BEHIND_OFFSET = CHARACTER_SCALE * 2;  // 2x character height behind
-        const CAMERA_ABOVE_OFFSET = CHARACTER_SCALE * 0.8;  // 0.8x character height above
+        function getCameraOffsets() {
+            const scale = getCharacterScale();
+            return {
+                behind: scale * 4,   // 4x character height behind
+                above: scale * 2     // 2x character height above
+            };
+        }
+
+        // Create a simple stick figure character as fallback
+        function createStickFigure() {
+            const group = new THREE.Group();
+            const scale = getCharacterScale();
+
+            // Materials
+            const bodyMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.9 });
+            const headMat = new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.9 });
+
+            // Head (sphere)
+            const headGeo = new THREE.SphereGeometry(0.15 * scale, 16, 16);
+            const head = new THREE.Mesh(headGeo, headMat);
+            head.position.y = 0.85 * scale;
+            head.name = 'head';
+            group.add(head);
+
+            // Body (cylinder)
+            const bodyGeo = new THREE.CylinderGeometry(0.08 * scale, 0.1 * scale, 0.5 * scale, 8);
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.5 * scale;
+            body.name = 'body';
+            group.add(body);
+
+            // Arms (left and right)
+            const armGeo = new THREE.CylinderGeometry(0.03 * scale, 0.03 * scale, 0.35 * scale, 6);
+
+            const leftArm = new THREE.Mesh(armGeo, bodyMat);
+            leftArm.position.set(-0.15 * scale, 0.55 * scale, 0);
+            leftArm.rotation.z = Math.PI / 6;
+            leftArm.name = 'leftArm';
+            group.add(leftArm);
+
+            const rightArm = new THREE.Mesh(armGeo, bodyMat);
+            rightArm.position.set(0.15 * scale, 0.55 * scale, 0);
+            rightArm.rotation.z = -Math.PI / 6;
+            rightArm.name = 'rightArm';
+            group.add(rightArm);
+
+            // Legs (left and right)
+            const legGeo = new THREE.CylinderGeometry(0.04 * scale, 0.04 * scale, 0.4 * scale, 6);
+
+            const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+            leftLeg.position.set(-0.06 * scale, 0.2 * scale, 0);
+            leftLeg.name = 'leftLeg';
+            group.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+            rightLeg.position.set(0.06 * scale, 0.2 * scale, 0);
+            rightLeg.name = 'rightLeg';
+            group.add(rightLeg);
+
+            // Direction indicator (cone pointing forward)
+            const coneGeo = new THREE.ConeGeometry(0.08 * scale, 0.15 * scale, 8);
+            const coneMat = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+            const cone = new THREE.Mesh(coneGeo, coneMat);
+            cone.position.set(0, 0.5 * scale, 0.15 * scale);
+            cone.rotation.x = Math.PI / 2;
+            cone.name = 'directionCone';
+            group.add(cone);
+
+            group.isStickFigure = true;
+            return group;
+        }
 
         function loadCharacter() {
+            if (character) {
+                scene.remove(character);
+                character.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+                character = null;
+                characterMixer = null;
+            }
+
+            if (useFBXCharacter) {
+                loadFBXCharacter();
+            } else {
+                loadStickFigure();
+            }
+        }
+
+        function loadStickFigure() {
+            character = createStickFigure();
+            updateCharacterPosition();
+            scene.add(character);
+            characterLoaded = true;
+            character.visible = characterMode;
+            console.log('Stick figure character created! Press C to toggle character mode.');
+        }
+
+        function loadFBXCharacter() {
             const loader = new THREE.FBXLoader();
-            loader.load('assets/models/Walking.fbx',
+            const scale = getCharacterScale();
+
+            console.log('Loading FBX character model...');
+
+            // Load character model
+            loader.load('assets/models/character.fbx',
                 (fbx) => {
                     character = fbx;
 
-                    // Scale to 50km tall
-                    character.scale.setScalar(CHARACTER_SCALE / 100);  // FBX models are often ~100 units tall
+                    // Scale to desired height (FBX models vary in size, typically ~100-200 units tall)
+                    // Adjust divisor based on actual model height
+                    const modelHeight = 180;  // Approximate height of this character model
+                    character.scale.setScalar(scale / modelHeight);
 
-                    // Setup animation
+                    // Fix materials for proper rendering inside the sphere
+                    character.traverse((child) => {
+                        if (child.isMesh) {
+                            // Make materials double-sided (visible from inside sphere)
+                            if (child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(mat => {
+                                        mat.side = THREE.DoubleSide;
+                                        mat.needsUpdate = true;
+                                    });
+                                } else {
+                                    child.material.side = THREE.DoubleSide;
+                                    child.material.needsUpdate = true;
+                                }
+                            }
+                            // Enable shadows
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+
+                    // Setup animation mixer
                     characterMixer = new THREE.AnimationMixer(character);
+
+                    // If the model has embedded animations, use them
                     if (fbx.animations && fbx.animations.length > 0) {
-                        characterAction = characterMixer.clipAction(fbx.animations[0]);
-                        characterAction.play();
-                        characterAction.paused = true;  // Start paused, play when walking
+                        characterAnimations.idle = characterMixer.clipAction(fbx.animations[0]);
+                        characterAnimations.idle.play();
+                        currentAnimation = 'idle';
                     }
 
-                    // Position at nadir initially
-                    updateCharacterPosition();
+                    // Load walking animation
+                    loader.load('assets/models/walking.fbx',
+                        (walkFbx) => {
+                            if (walkFbx.animations && walkFbx.animations.length > 0) {
+                                characterAnimations.walk = characterMixer.clipAction(walkFbx.animations[0]);
+                                console.log('Walking animation loaded');
+                            }
+                        },
+                        undefined,
+                        (err) => console.log('Could not load walking animation:', err)
+                    );
 
+                    // Load idle animation
+                    loader.load('assets/models/idle.fbx',
+                        (idleFbx) => {
+                            if (idleFbx.animations && idleFbx.animations.length > 0) {
+                                characterAnimations.idle = characterMixer.clipAction(idleFbx.animations[0]);
+                                characterAnimations.idle.play();
+                                currentAnimation = 'idle';
+                                console.log('Idle animation loaded');
+                            }
+                        },
+                        undefined,
+                        (err) => console.log('Could not load idle animation:', err)
+                    );
+
+                    updateCharacterPosition();
                     scene.add(character);
                     characterLoaded = true;
-                    // Don't enable character mode automatically - user can press 'C' to toggle
-                    // characterMode = true;
+                    character.visible = characterMode;
+                    character.isStickFigure = false;
 
-                    console.log('Character loaded! Press C to toggle character mode. Height:', CHARACTER_HEIGHT_KM, 'km');
+                    console.log('FBX character loaded! Press C to toggle character mode.');
                 },
                 (progress) => {
-                    console.log('Loading character:', Math.round(progress.loaded / progress.total * 100) + '%');
+                    if (progress.total > 0) {
+                        console.log('Loading character:', Math.round(progress.loaded / progress.total * 100) + '%');
+                    }
                 },
                 (error) => {
-                    console.error('Error loading character:', error);
+                    console.warn('Could not load FBX character, using stick figure:', error);
+                    useFBXCharacter = false;
+                    loadStickFigure();
                 }
             );
+        }
+
+        // Animate the stick figure walking (fallback)
+        function animateStickFigure(isMoving) {
+            if (!character || !character.isStickFigure) return;
+
+            if (isMoving) {
+                // Animate walking - swing arms and legs
+                walkAnimPhase += 0.15;  // Speed of animation
+                const swing = Math.sin(walkAnimPhase) * 0.5;
+
+                character.traverse(child => {
+                    if (child.name === 'leftArm') {
+                        child.rotation.x = swing;
+                    } else if (child.name === 'rightArm') {
+                        child.rotation.x = -swing;
+                    } else if (child.name === 'leftLeg') {
+                        child.rotation.x = -swing * 0.7;
+                    } else if (child.name === 'rightLeg') {
+                        child.rotation.x = swing * 0.7;
+                    }
+                });
+            } else {
+                // Reset to standing pose
+                character.traverse(child => {
+                    if (['leftArm', 'rightArm', 'leftLeg', 'rightLeg'].includes(child.name)) {
+                        child.rotation.x *= 0.9;  // Smoothly return to neutral
+                    }
+                });
+            }
         }
 
         function updateCharacterPosition() {
             if (!character) return;
 
-            // Position character at nadir, standing on the sphere surface
-            const pos = geoToSphere(nadir.lat, nadir.lon);
+            // In character mode, position is based on nadir (where we are on the globe)
+            // The character stands at nadir position, facing the direction we're walking
 
-            // Character feet at surface (multiply to put on inner surface)
-            character.position.copy(pos).multiplyScalar(0.999);
+            // Get position on sphere surface at nadir
+            // Since worldGroup is rotated, we need to account for that
+            // The character should appear at the "bottom" of the view (where nadir is)
 
-            // Orient character to stand upright (feet toward center, head outward)
-            // The "up" direction for the character should point toward center (negative of position)
-            const up = pos.clone().normalize().negate();  // Point toward center
-            const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(cameraQuat);  // Face where camera looks
+            // Position at fixed point - bottom of sphere in world space
+            // This is the nadir position before worldGroup rotation
+            const bottomPos = new THREE.Vector3(0, -SPHERE_RADIUS * 0.998, 0);
+            character.position.copy(bottomPos);
 
-            // Project forward onto the tangent plane at this point
-            const tangentForward = forward.clone().sub(up.clone().multiplyScalar(forward.dot(up))).normalize();
+            // Character "up" is toward the center of the sphere (positive Y in this case)
+            // But since we're inside the sphere, up for the character is -Y (toward center)
+            const charUp = new THREE.Vector3(0, 1, 0);  // Character's local up
 
-            // Create rotation matrix
-            const matrix = new THREE.Matrix4();
-            const right = new THREE.Vector3().crossVectors(tangentForward, up).normalize();
-            const correctedForward = new THREE.Vector3().crossVectors(up, right).normalize();
+            // Forward direction based on camera look direction (projected onto horizontal)
+            const lookDir = new THREE.Vector3(0, 0, 1).applyQuaternion(cameraQuat);
+            const horizLook = new THREE.Vector3(lookDir.x, 0, lookDir.z).normalize();
 
-            matrix.makeBasis(right, up, correctedForward);
-            character.quaternion.setFromRotationMatrix(matrix);
-
-            // Rotate 180 degrees around up axis so character faces forward
-            const flipQuat = new THREE.Quaternion().setFromAxisAngle(up, Math.PI);
-            character.quaternion.multiply(flipQuat);
+            // Build rotation to face the walking direction
+            if (horizLook.lengthSq() > 0.001) {
+                const angle = Math.atan2(horizLook.x, horizLook.z);
+                character.rotation.set(0, angle, 0);
+            }
         }
 
         function updateCharacterAnimation(delta, isMoving) {
-            if (!characterMixer) return;
+            if (!character) return;
 
-            if (isMoving) {
-                if (characterAction && characterAction.paused) {
-                    characterAction.paused = false;
-                }
+            // Use FBX animation mixer if available
+            if (characterMixer && !character.isStickFigure) {
+                // Update animation mixer
                 characterMixer.update(delta);
-            } else {
-                if (characterAction && !characterAction.paused) {
-                    characterAction.paused = true;
+
+                // Switch between walk and idle animations
+                const targetAnim = isMoving ? 'walk' : 'idle';
+                if (currentAnimation !== targetAnim && characterAnimations[targetAnim]) {
+                    // Crossfade to new animation
+                    if (characterAnimations[currentAnimation]) {
+                        characterAnimations[currentAnimation].fadeOut(0.2);
+                    }
+                    characterAnimations[targetAnim].reset().fadeIn(0.2).play();
+                    currentAnimation = targetAnim;
                 }
+            } else {
+                // Use stick figure animation as fallback
+                animateStickFigure(isMoving);
             }
         }
 
         function updateCameraForCharacter() {
             if (!character || !characterMode) return;
 
-            // Get character position and orientation
+            const offsets = getCameraOffsets();
+            const scale = getCharacterScale();
+
+            // Camera position: behind and above the character
+            // Character is at bottom of sphere, facing forward
             const charPos = character.position.clone();
-            const charUp = charPos.clone().normalize().negate();  // Toward center
 
-            // Get forward direction (where character is facing)
-            const charForward = new THREE.Vector3(0, 0, 1).applyQuaternion(character.quaternion);
+            // Get character's forward direction (from rotation)
+            const charForward = new THREE.Vector3(0, 0, 1);
+            charForward.applyQuaternion(character.quaternion);
 
-            // Calculate camera position: behind and above character
-            // "Behind" means opposite of forward direction
-            // "Above" means in the up direction (away from center)
-            const cameraOffset = charForward.clone().multiplyScalar(-CAMERA_BEHIND_OFFSET)
-                .add(charUp.clone().negate().multiplyScalar(CAMERA_ABOVE_OFFSET));
+            // Camera goes behind (-forward) and above (+Y, away from center)
+            const cameraOffset = new THREE.Vector3();
+            cameraOffset.addScaledVector(charForward, -offsets.behind);  // Behind
+            cameraOffset.y += offsets.above;  // Above (away from sphere center)
 
             const targetCameraPos = charPos.clone().add(cameraOffset);
 
-            // Smoothly interpolate camera position
+            // Smoothly move camera
             camera.position.lerp(targetCameraPos, 0.1);
 
-            // Camera looks at character (slightly above feet)
-            const lookTarget = charPos.clone().add(charUp.clone().negate().multiplyScalar(CHARACTER_SCALE * 0.3));
+            // Look ABOVE the character to position them in lower third of screen
+            // Looking higher makes the character appear lower on screen
+            const lookTarget = charPos.clone();
+            lookTarget.y += scale * 2.5;  // Look well above character's head
+            // Also look slightly forward (in front of character)
+            lookTarget.addScaledVector(charForward, scale * 1.5);
             camera.lookAt(lookTarget);
         }
 
@@ -3005,12 +3646,7 @@
 
         // === Initialize ===
         loadSatelliteTexture();
-        createSphereContent();
-        createSubjectiveGrid();
-        createCities();
-        createLabels();
-        createHomeMarker();
-        initGreatCircleGroup();
+        rebuildAll();  // Creates worldGroup and all content
         // loadCharacter();  // Disabled - FBX file too large (41MB) for GitHub Pages
         document.getElementById('greatcircle-toggle').checked = true;  // Default on
         loadDefaultSettings();  // Load saved default view if available
@@ -3018,19 +3654,23 @@
         updateInfo();
         animate();
 
-        // Auto-locate user on startup
-        if (navigator.geolocation) {
+        // Auto-locate user on startup (only works with http/https, not file://)
+        if (window.location.protocol !== 'file:' && navigator.geolocation) {
+            console.log('Attempting auto-geolocation on startup...');
             navigator.geolocation.getCurrentPosition(
                 pos => {
                     homeLocation = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                    console.log('Startup location acquired:', pos.coords.latitude, pos.coords.longitude);
                     setLocation(pos.coords.latitude, pos.coords.longitude, true);
                 },
                 (err) => {
                     // Silent fallback - stay at default location (Paris)
-                    console.log('Geolocation unavailable:', err.message, '- using default location');
+                    console.log('Startup geolocation unavailable:', err.code, err.message, '- using default location');
                 },
                 { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 }
             );
+        } else if (window.location.protocol === 'file:') {
+            console.log('Running from file:// - geolocation disabled. Use a local server for location features.');
         }
 
         console.log('InnerEarth SPHERE initialized with all features!');
