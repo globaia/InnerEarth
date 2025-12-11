@@ -940,8 +940,7 @@
             const verts = [], uvs = [], indices = [];
 
             for (let i = 0; i <= latSegs; i++) {
-                // Map latitude from +90 (north) to -90 (south) as i goes 0 to latSegs
-                const lat = 90 - (180 * i / latSegs);
+                const lat = 90 - (180 * i / latSegs);  // +90 to -90
                 for (let j = 0; j <= lonSegs; j++) {
                     const lon = -180 + (360 * j / lonSegs);
                     const pos = geoToSphere(lat, lon);
@@ -950,10 +949,8 @@
                         pos.y * SATELLITE_RADIUS_SCALE,
                         pos.z * SATELLITE_RADIUS_SCALE
                     );
-                    // UV mapping: i=0 is north (lat=90), i=latSegs is south (lat=-90)
-                    // Texture v=0 is north, v=1 is south
-                    // So v = i/latSegs maps correctly
-                    uvs.push(j / lonSegs, i / latSegs);
+                    // Flip V to correct north/south orientation
+                    uvs.push(j / lonSegs, 1 - i / latSegs);
                 }
             }
 
