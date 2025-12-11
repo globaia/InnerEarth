@@ -169,55 +169,157 @@
             padding: 0 4px;
         }
 
-        /* About Modal */
-        .modal-overlay {
-            display: none;
+        /* About Panel (Sliding from Left) */
+        .about-panel {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
+            top: 0;
+            left: 0;
+            width: 480px;
+            max-width: 90vw;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(8,12,20,0.98) 0%, rgba(15,20,30,0.98) 100%);
             z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        .modal-overlay.show { display: flex; }
-        .modal {
-            background: #111;
-            border-radius: 16px;
-            padding: 30px;
-            max-width: 600px;
-            max-height: 80vh;
+            transform: translateX(-100%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             overflow-y: auto;
-            color: #ddd;
-            font-family: system-ui, sans-serif;
-            line-height: 1.7;
+            box-shadow: 4px 0 30px rgba(0,0,0,0.5);
         }
-        .modal h2 {
+        .about-panel.open { transform: translateX(0); }
+        .about-panel-content {
+            padding: 40px 35px;
+            color: #ccc;
+            font-family: 'Georgia', serif;
+            line-height: 1.8;
+        }
+        .about-panel-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 28px;
+            cursor: pointer;
+            transition: color 0.2s;
+            z-index: 10;
+        }
+        .about-panel-close:hover { color: #fff; }
+        .about-panel h1 {
+            font-size: 28px;
+            color: #fff;
+            margin-bottom: 8px;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+        .about-panel .subtitle {
             color: #0af;
-            margin-bottom: 20px;
-            font-size: 24px;
+            font-size: 14px;
+            font-family: system-ui, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
         }
-        .modal p {
+        .about-panel .lead {
+            font-size: 18px;
+            color: #fff;
+            margin-bottom: 25px;
+            font-style: italic;
+        }
+        .about-panel h2 {
+            font-size: 16px;
+            color: #0af;
+            margin: 35px 0 15px 0;
+            font-family: system-ui, sans-serif;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .about-panel p {
             margin-bottom: 16px;
             font-size: 14px;
+            color: #bbb;
         }
-        .modal .welcome {
+        .about-panel strong { color: #fff; }
+        .about-panel .resonance {
+            margin: 12px 0;
+            padding-left: 15px;
+            border-left: 2px solid #0af;
+        }
+        .about-panel .resonance-title {
             color: #fff;
-            font-size: 16px;
-            margin-top: 20px;
+            font-weight: 600;
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
         }
-        .modal .credit {
-            margin-top: 24px;
-            padding-top: 16px;
-            border-top: 1px solid #333;
-            font-size: 12px;
+        .about-panel .resonance-desc {
+            color: #999;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .about-panel .highlight {
+            background: linear-gradient(90deg, rgba(0,170,255,0.15) 0%, transparent 100%);
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 3px solid #0af;
+        }
+        .about-panel .highlight p {
+            margin: 0;
+            color: #fff;
+            font-style: italic;
+        }
+        .about-panel .divider {
+            height: 1px;
+            background: linear-gradient(90deg, #333 0%, transparent 100%);
+            margin: 30px 0;
+        }
+        .about-panel .embed-container {
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        }
+        .about-panel .embed-container iframe {
+            width: 100%;
+            height: 250px;
+            border: none;
+        }
+        .about-panel .embed-caption {
+            background: rgba(0,0,0,0.5);
+            padding: 10px 15px;
+            font-size: 11px;
             color: #888;
+            font-family: system-ui, sans-serif;
         }
-        .modal .credit a {
+        .about-panel .footer {
+            margin-top: 40px;
+            padding-top: 25px;
+            border-top: 1px solid #333;
+            text-align: center;
+        }
+        .about-panel .footer a {
             color: #0af;
             text-decoration: none;
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
+            transition: color 0.2s;
         }
-        .modal .credit a:hover { text-decoration: underline; }
+        .about-panel .footer a:hover { color: #fff; }
+        .about-panel .globaia-logo {
+            font-size: 18px;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+        .about-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .about-overlay.open { opacity: 1; visibility: visible; }
 
         /* Icons in UI */
         .icon {
@@ -239,19 +341,90 @@
     <div id="loading">Loading InnerEarth...</div>
     <div id="city-label"></div>
 
-    <!-- About Modal -->
-    <div class="modal-overlay" id="about-modal">
-        <div class="modal">
-            <h2>About InnerEarth</h2>
-            <p><strong>You've spent your whole life on Earth. Now step inside it.</strong></p>
-            <p>InnerEarth inverts the globe. Instead of gazing down at a spinning marble from some impossible orbital perch, you stand at the center—your center, wherever you are—while the entire planet curves around you like the interior of a vast sphere. Logarithmic scaling lets your street and your hemisphere coexist in the same view, each legible, each connected.</p>
-            <p>This sounds new. It is. And yet.</p>
-            <p>Humans have been dreaming toward this moment for millennia. The Greek agora where all could see and be seen. Boullée's impossible hollow sphere designed to contain the cosmos. Escher's hand holding a mirrored ball that held him back. The curved habitats of science fiction—O'Neill cylinders, Rama, Cooper Station—where the world wraps upward into sky. The cosmic eggs of a dozen creation myths. The planetarium inverted: not stars projected above, but home projected around.</p>
-            <p>InnerEarth is where these streams converge.</p>
-            <p>What you'll feel is double: the thrill of genuine novelty, and the strange recognition of something your imagination has always been reaching for. The unfamiliar will feel familiar. This is not a bug—it's the reason it works.</p>
-            <p>We are not on Earth. We are of it, within it, held by it. InnerEarth makes that truth visible.</p>
-            <p class="welcome">Welcome inside.</p>
-            <p class="credit">Provided by <a href="https://www.globaia.org" target="_blank">GLOBAÏA</a></p>
+    <!-- About Panel (Slides from Left) -->
+    <div class="about-overlay" id="about-overlay"></div>
+    <div class="about-panel" id="about-panel">
+        <button class="about-panel-close" id="about-close">&times;</button>
+        <div class="about-panel-content">
+            <h1>InnerEarth</h1>
+            <div class="subtitle">The Horizon Dissolved</div>
+
+            <p class="lead">For the first time in human history, we can see our entire planet without losing sight of where we stand.</p>
+
+            <p>This is not a metaphor. It is the central epistemological breakthrough of InnerEarth: <strong>the simultaneous visibility of the local and the global as a single, continuous perceptual field.</strong></p>
+
+            <div class="embed-container">
+                <iframe src="https://momento360.com/e/u/cc6573de6b924c13996c13778a204b9b?field-of-view=75&heading=0&pitch=0" allowfullscreen></iframe>
+                <div class="embed-caption">360° view: InnerEarth concept, 250m above Paris</div>
+            </div>
+
+            <h2>The Problem of the Horizon</h2>
+            <p>Every representation of Earth has faced the same constraint: you cannot see everything at once.</p>
+            <p>Stand on the ground, and the horizon limits you to 5 kilometers. Climb Everest, and you reach 336 kilometers—still a fraction of Earth's surface. Even astronauts in low orbit see only a curved slice.</p>
+            <p>Maps flatten the sphere, creating edges where continuity exists. Globes preserve the curve but present an exterior surface—you see <em>around</em> the Earth, never <em>within</em> it. Zoom in and context vanishes; zoom out and detail disappears.</p>
+            <p>The horizon is not merely a visual limit. It is an <strong>epistemological boundary</strong>—a dividing circle between the known and the unknown, between here and elsewhere.</p>
+
+            <p><strong>InnerEarth eliminates it.</strong></p>
+
+            <h2>The Inversion</h2>
+            <p>InnerEarth projects Earth's surface onto the interior of a sphere, with you at the center. Your location becomes the nadir beneath your feet. Your antipode rises to the zenith above your head. Every point on Earth occupies a position in your field of view.</p>
+            <p>There is no edge. No boundary. No "off-screen." The world does not end where your sight fails; it curves upward, surrounding you completely.</p>
+
+            <h2>The Perceptually-Scaled Planetary View</h2>
+            <p>InnerEarth employs a <strong>Perceptually-Scaled Planetary View</strong>: locations near you appear in high detail—street-level, architectural, intimate—while distant regions compress gradually into continental and hemispheric patterns.</p>
+            <p>The result: <strong>you can see your neighborhood AND your continent AND your hemisphere AND your antipode simultaneously</strong>, each at a resolution appropriate to human perception.</p>
+            <p>This is not zoom. Zoom chooses between scales. InnerEarth <em>bridges</em> them—a continuous gradient from the intimate to the planetary, visible all at once.</p>
+
+            <h2>What Becomes Visible</h2>
+            <p>When the horizon dissolves and scales merge, phenomena that were previously abstract become <strong>perceptible</strong>:</p>
+            <p><strong>Teleconnections</strong> — Atmospheric links between distant events traced as visible arcs across your interior sky.</p>
+            <p><strong>Flows</strong> — Migration routes, trade networks, ocean currents—patterns that span continents become legible as the continuous paths they actually are.</p>
+            <p><strong>Cycles</strong> — The terminator line of day and night, the seasonal pulse of vegetation across hemispheres—temporal patterns rendered spatial.</p>
+            <p><strong>Relationships</strong> — The distance to a loved one, measured not in hours but in visible arc.</p>
+
+            <div class="divider"></div>
+
+            <h2>An Ancient Intuition, Finally Realized</h2>
+            <p>InnerEarth was imagined in 2011 by GLOBAÏA—yet when people experience it, they often feel something strangely familiar. This is not coincidence.</p>
+            <p>InnerEarth taps into deep cultural archetypes that humans have explored for millennia. It is a seemingly timeless experience because it resonates with forms and ideas that have always been with us:</p>
+
+            <div class="resonance">
+                <div class="resonance-title">The Agora</div>
+                <div class="resonance-desc">Spaces where all can see and be seen. The planetary assembly made manifest.</div>
+            </div>
+            <div class="resonance">
+                <div class="resonance-title">The Dome</div>
+                <div class="resonance-desc">The planetarium inverted—Earth projected around you instead of stars above.</div>
+            </div>
+            <div class="resonance">
+                <div class="resonance-title">The Womb</div>
+                <div class="resonance-desc">Cosmic egg mythologies across cultures. We exist within Earth, not merely upon it.</div>
+            </div>
+            <div class="resonance">
+                <div class="resonance-title">The Planetscape</div>
+                <div class="resonance-desc">Friedrich's wanderer, but the fog clears to reveal everything.</div>
+            </div>
+            <div class="resonance">
+                <div class="resonance-title">The Curved World</div>
+                <div class="resonance-desc">O'Neill cylinders, Clarke's Rama, Nolan's Cooper Station—applied to Earth.</div>
+            </div>
+            <div class="resonance">
+                <div class="resonance-title">The Reflecting Sphere</div>
+                <div class="resonance-desc">Escher's mirrored ball at planetary scale—you see not your face but your place.</div>
+            </div>
+            <div class="resonance">
+                <div class="resonance-title">Omnipresence-in-Place</div>
+                <div class="resonance-desc">Being here while aware of everywhere. Not telepresence but embeddedness made visible.</div>
+            </div>
+
+            <p style="margin-top: 25px;">The unfamiliar feels familiar because InnerEarth fulfills what humanity has been imagining for millennia.</p>
+
+            <p><em>The horizon was never a feature of Earth. It was a limitation of our perception—a boundary we mistook for a property of the world. Now we see through it.</em></p>
+
+            <div class="footer">
+                <div class="globaia-logo">GLOBAÏA</div>
+                <a href="https://www.globaia.org" target="_blank">www.globaia.org</a>
+            </div>
         </div>
     </div>
 
@@ -2376,16 +2549,21 @@
             }
         }
 
-        // About modal
+        // About panel
+        function openAboutPanel() {
+            document.getElementById('about-panel').classList.add('open');
+            document.getElementById('about-overlay').classList.add('open');
+        }
+        function closeAboutPanel() {
+            document.getElementById('about-panel').classList.remove('open');
+            document.getElementById('about-overlay').classList.remove('open');
+        }
         document.getElementById('about-btn').addEventListener('click', (e) => {
             e.preventDefault();
-            document.getElementById('about-modal').classList.add('show');
+            openAboutPanel();
         });
-        document.getElementById('about-modal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                e.currentTarget.classList.remove('show');
-            }
-        });
+        document.getElementById('about-close').addEventListener('click', closeAboutPanel);
+        document.getElementById('about-overlay').addEventListener('click', closeAboutPanel);
 
         document.getElementById('locate').addEventListener('click', async () => {
             const btn = document.getElementById('locate');
@@ -2966,18 +3144,28 @@
 
             walkFrameCount++;
 
+            // A/D keys rotate the camera (turn left/right) instead of strafing
+            const turnSpeed = 120;  // Degrees per second for turning
+            const turnPerFrame = turnSpeed / 60;  // Assuming ~60fps
+            if (keysPressed.left || keysPressed.right) {
+                const turnDir = keysPressed.left ? 1 : -1;
+                const yawQuat = new THREE.Quaternion();
+                yawQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), turnDir * turnPerFrame * DEG2RAD);
+                cameraQuat.premultiply(yawQuat);
+                cameraQuat.normalize();
+                updateCameraLook();
+            }
+
             // Get camera look direction in world space
             const lookDir = new THREE.Vector3(0, 0, 1).applyQuaternion(cameraQuat);
-            const rightDir = new THREE.Vector3(1, 0, 0).applyQuaternion(cameraQuat);
 
             // Build movement vector based on keys
             // Forward (W) = move toward where you're looking
             // Backward (S) = move away from where you're looking
+            // Left/Right (A/D) = turn only, no movement contribution
             let moveDir = new THREE.Vector3(0, 0, 0);
             if (keysPressed.forward) moveDir.add(lookDir);
             if (keysPressed.backward) moveDir.sub(lookDir);
-            if (keysPressed.right) moveDir.add(rightDir);
-            if (keysPressed.left) moveDir.sub(rightDir);
 
             if (moveDir.lengthSq() < 0.001) return;
             moveDir.normalize();
@@ -3653,8 +3841,8 @@
             const delta = clock.getDelta();
             const now = performance.now();
 
-            // Check if character is moving (any movement key pressed)
-            const isCharacterMoving = keysPressed.forward || keysPressed.backward || keysPressed.left || keysPressed.right;
+            // Check if character is actually moving (forward/backward only, not just turning)
+            const isCharacterMoving = keysPressed.forward || keysPressed.backward;
 
             // Update character animation
             updateCharacterAnimation(delta, isCharacterMoving);
