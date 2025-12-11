@@ -432,8 +432,8 @@
             <label for="character-toggle" style="margin:0;color:#aaa;">Show walking character (C key)</label>
         </div>
         <div id="character-controls" style="display:none;margin-top:6px;">
-            <label style="font-size:10px;color:#666;">Character height: <span id="char-height-display">100 km</span></label>
-            <input type="range" id="char-height-slider" min="0" max="100" value="50" style="width:100%;">
+            <label style="font-size:10px;color:#666;">Character height: <span id="char-height-display">50 km</span></label>
+            <input type="range" id="char-height-slider" min="0" max="100" value="40" style="width:100%;">
             <div style="font-size:9px;color:#555;margin:4px 0 0 0;">Use WASD to walk, camera follows from behind</div>
         </div>
 
@@ -826,13 +826,16 @@
 
         // === Day/Night Sphere (outer sphere with gradient terminator) ===
         function createDayNightSphere() {
+            // Always clean up existing sphere first
             if (dayNightSphere) {
                 if (worldGroup) worldGroup.remove(dayNightSphere);
                 else scene.remove(dayNightSphere);
                 dayNightSphere.geometry?.dispose();
                 dayNightSphere.material?.dispose();
+                dayNightSphere = null;
             }
 
+            // Only create new sphere if day/night is enabled
             if (!showDayNight) return;
 
             // Get current sun position
@@ -933,9 +936,9 @@
             }
 
             // Create satellite sphere using same geoToSphere projection as coastlines
-            // Slightly larger radius places it behind vectors (further from camera when inside sphere)
-            const SATELLITE_RADIUS_SCALE = 1.002;
-
+            // Slightly SMALLER radius (1.001x outward from center = further from camera inside sphere)
+            // This ensures we're always "above" the satellite when looking at the inner surface
+            const SATELLITE_RADIUS_SCALE = 1.001;  // Pushes sphere outward, away from camera
             const latSegs = 128, lonSegs = 256;
             const verts = [], uvs = [], indices = [];
 
@@ -944,12 +947,13 @@
                 for (let j = 0; j <= lonSegs; j++) {
                     const lon = -180 + (360 * j / lonSegs);
                     const pos = geoToSphere(lat, lon);
+                    // Scale outward from center - larger radius means further from camera (we're inside)
                     verts.push(
                         pos.x * SATELLITE_RADIUS_SCALE,
                         pos.y * SATELLITE_RADIUS_SCALE,
                         pos.z * SATELLITE_RADIUS_SCALE
                     );
-                    // Flip V to correct north/south orientation
+                    // Flip V to match satellite imagery orientation
                     uvs.push(j / lonSegs, 1 - i / latSegs);
                 }
             }
@@ -977,6 +981,7 @@
                 opacity: opacityValues.satellite,
                 depthWrite: false
             }));
+            satelliteSphere.renderOrder = 0;  // Render first (behind everything)
 
             satelliteSphere.visible = satelliteVisible;
             if (worldGroup) worldGroup.add(satelliteSphere);
@@ -1020,15 +1025,17 @@
             const mat = new THREE.SpriteMaterial({
                 map: texture,
                 transparent: true,
-                sizeAttenuation: false  // Constant screen size!
+                sizeAttenuation: false,  // Constant screen size!
+                depthTest: false  // Always render on top of satellite
             });
 
             homeMarkerMesh = new THREE.Sprite(mat);
             homeMarkerMesh.scale.set(0.04, 0.04, 1);  // Screen-space size
+            homeMarkerMesh.renderOrder = 10;  // Render after satellite
 
-            // Position at nadir - OUTSIDE the sphere (below the camera)
+            // Position at nadir - same radius as sphere (depthTest:false ensures visibility)
             const pos = geoToSphere(nadir.lat, nadir.lon);
-            homeMarkerMesh.position.copy(pos).multiplyScalar(1.002);  // Slightly outside surface
+            homeMarkerMesh.position.copy(pos);  // Same radius, depthTest:false renders on top
 
             homeMarkerMesh.visible = showHomeMarker;
             if (worldGroup) worldGroup.add(homeMarkerMesh);
@@ -1075,15 +1082,17 @@
             const mat = new THREE.SpriteMaterial({
                 map: texture,
                 transparent: true,
-                sizeAttenuation: false  // Constant screen size!
+                sizeAttenuation: false,  // Constant screen size!
+                depthTest: false  // Always render on top of satellite
             });
 
             antipodeMarkerMesh = new THREE.Sprite(mat);
             antipodeMarkerMesh.scale.set(0.015, 0.015, 1);  // Small red dot
+            antipodeMarkerMesh.renderOrder = 10;  // Render after satellite
 
-            // Position at antipode (zenith) - OUTSIDE the sphere
+            // Position at antipode (zenith) - same radius as sphere
             const pos = geoToSphere(antipodeLat, antipodeLon);
-            antipodeMarkerMesh.position.copy(pos).multiplyScalar(1.002);  // Slightly outside surface
+            antipodeMarkerMesh.position.copy(pos);  // Same radius, depthTest:false renders on top
 
             antipodeMarkerMesh.visible = showHomeMarker;
             if (worldGroup) worldGroup.add(antipodeMarkerMesh);
@@ -1112,16 +1121,17 @@
                 map: labelTexture,
                 transparent: true,
                 sizeAttenuation: false,
-                depthWrite: false
+                depthTest: false  // Always render on top of satellite
             });
 
             antipodeLabelSprite = new THREE.Sprite(labelMat);
             antipodeLabelSprite.scale.set(0.24, 0.06, 1);  // 3x bigger (was 0.08, 0.02)
+            antipodeLabelSprite.renderOrder = 10;  // Render after satellite
 
             // Position label ABOVE the dot using sprite's center offset
             // The sprite center property moves where the sprite renders relative to its position
             antipodeLabelSprite.center.set(0.5, -0.3);  // Shift sprite up (renders above its position point)
-            antipodeLabelSprite.position.copy(pos).multiplyScalar(1.002);  // Same as marker
+            antipodeLabelSprite.position.copy(pos);  // Same radius, depthTest:false renders on top
 
             antipodeLabelSprite.visible = showAntipodeLabel && showHomeMarker;
             if (worldGroup) worldGroup.add(antipodeLabelSprite);
@@ -1173,6 +1183,11 @@
                 subjectiveGridGroup.add(new THREE.Line(geo, mat));
             }
 
+            // Set renderOrder on all subjective grid lines to render after satellite
+            subjectiveGridGroup.traverse(obj => {
+                if (obj.isLine || obj.isLineLoop) obj.renderOrder = 5;
+            });
+
             subjectiveGridGroup.visible = showSubjectiveGrid;
             if (worldGroup) worldGroup.add(subjectiveGridGroup);
             else scene.add(subjectiveGridGroup);
@@ -1218,14 +1233,16 @@
                 const mat = new THREE.SpriteMaterial({
                     map: texture,
                     transparent: true,
-                    sizeAttenuation: false  // Constant screen size!
+                    sizeAttenuation: false,  // Constant screen size!
+                    depthTest: false  // Always render on top of satellite
                 });
 
                 const sprite = new THREE.Sprite(mat);
                 sprite.scale.set(0.012, 0.012, 1);  // Smaller city dots
+                sprite.renderOrder = 10;  // Render after satellite
 
                 const pos = geoToSphere(city.lat, city.lon);
-                sprite.position.copy(pos);  // Exactly at ground level
+                sprite.position.copy(pos);  // Same radius, depthTest:false renders on top
                 sprite.userData = { city: city.name, lat: city.lat, lon: city.lon };
 
                 citiesGroup.add(sprite);
@@ -1978,6 +1995,11 @@
                 geoGridGroup.add(new THREE.Line(geo, mat));
             }
 
+            // Set renderOrder on all grid lines to render after satellite
+            geoGridGroup.traverse(obj => {
+                if (obj.isLine) obj.renderOrder = 5;
+            });
+
             geoGridGroup.visible = showGeoGrid;
             if (worldGroup) worldGroup.add(geoGridGroup);
             else scene.add(geoGridGroup);
@@ -2030,6 +2052,11 @@
                 const g = f.geometry;
                 if (g.type === 'LineString') addLine(g.coordinates);
                 else if (g.type === 'MultiLineString') g.coordinates.forEach(addLine);
+            });
+
+            // Set renderOrder on all coast lines to render after satellite
+            coastGroup.traverse(obj => {
+                if (obj.isLine) obj.renderOrder = 5;
             });
 
             sphereGroup.add(coastGroup);
@@ -2724,14 +2751,8 @@
         document.getElementById('daynight-toggle').addEventListener('change', e => {
             showDayNight = e.target.checked;
             document.getElementById('daynight-controls').style.display = showDayNight ? 'block' : 'none';
-            if (showDayNight) {
-                createDayNightSphere();
-            } else if (dayNightSphere) {
-                scene.remove(dayNightSphere);
-                dayNightSphere.geometry?.dispose();
-                dayNightSphere.material?.dispose();
-                dayNightSphere = null;
-            }
+            // createDayNightSphere handles both creation and cleanup based on showDayNight
+            createDayNightSphere();
         });
 
         document.getElementById('time-offset-slider').addEventListener('input', e => {
@@ -2851,8 +2872,8 @@
         document.getElementById('walk-speed-slider').addEventListener('input', e => {
             updateWalkSpeed(parseInt(e.target.value));
         });
-        // Initialize with default value
-        updateWalkSpeed(25);  // ~5 km/h walking speed
+        // Initialize with default value (42 gives ~50 km/h)
+        updateWalkSpeed(42);
 
         function startWalking() {
             if (!isWalking && currentAltitudeKm <= GROUND_LEVEL_KM) {
@@ -3078,7 +3099,8 @@
         let currentAnimation = null;
         let characterLoaded = false;
         let characterMode = false;  // When true, camera follows character in 3rd person
-        let characterHeightKm = 100;  // Default 100km tall (visible from space view)
+        let characterHeightKm = 50;  // Default 50km tall
+        let characterLoadVersion = 0;  // Version counter to prevent duplicate character instances
         let walkAnimPhase = 0;  // Fallback animation phase for stick figure
         let useFBXCharacter = true;  // Try to load FBX, fallback to stick figure
 
@@ -3161,6 +3183,10 @@
         }
 
         function loadCharacter() {
+            // Increment version to invalidate any pending async loads
+            characterLoadVersion++;
+            const thisVersion = characterLoadVersion;
+
             if (character) {
                 scene.remove(character);
                 character.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
@@ -3169,13 +3195,16 @@
             }
 
             if (useFBXCharacter) {
-                loadFBXCharacter();
+                loadFBXCharacter(thisVersion);
             } else {
-                loadStickFigure();
+                loadStickFigure(thisVersion);
             }
         }
 
-        function loadStickFigure() {
+        function loadStickFigure(version) {
+            // Check if this load is still valid
+            if (version !== characterLoadVersion) return;
+
             character = createStickFigure();
             updateCharacterPosition();
             scene.add(character);
@@ -3184,7 +3213,7 @@
             console.log('Stick figure character created! Press C to toggle character mode.');
         }
 
-        function loadFBXCharacter() {
+        function loadFBXCharacter(version) {
             const loader = new THREE.FBXLoader();
             const scale = getCharacterScale();
 
@@ -3193,6 +3222,11 @@
             // Load character model
             loader.load('assets/models/character.fbx',
                 (fbx) => {
+                    // Check if this load is still valid (newer load may have started)
+                    if (version !== characterLoadVersion) {
+                        fbx.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+                        return;
+                    }
                     character = fbx;
 
                     // Scale to desired height (FBX models vary in size, typically ~100-200 units tall)
@@ -3273,7 +3307,7 @@
                 (error) => {
                     console.warn('Could not load FBX character, using stick figure:', error);
                     useFBXCharacter = false;
-                    loadStickFigure();
+                    loadStickFigure(version);
                 }
             );
         }
