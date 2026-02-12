@@ -334,6 +334,268 @@
             font-size: 14px;
             min-width: 32px;
         }
+        /* === GeoQuiz Race === */
+        .quiz-play-btn {
+            display: block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #0af, #08d);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            font-family: system-ui, sans-serif;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .quiz-play-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 12px rgba(0,170,255,0.5);
+        }
+
+        .quiz-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 500;
+            display: none;
+            pointer-events: none;
+        }
+        .quiz-overlay.active { display: block; }
+
+        .quiz-question-box {
+            position: fixed;
+            top: 6%;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 700px;
+            width: 90%;
+            background: rgba(0,0,0,0.88);
+            border: 1px solid rgba(0,170,255,0.4);
+            border-radius: 12px;
+            padding: 20px 28px;
+            text-align: center;
+            z-index: 510;
+            display: none;
+            animation: quizFadeIn 0.4s ease-out;
+        }
+        .quiz-question-box .question-text {
+            color: #fff;
+            font-family: system-ui, sans-serif;
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+        .quiz-question-box .question-hint {
+            color: #888;
+            font-family: system-ui, sans-serif;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .quiz-timer {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 6px 16px;
+            color: #0af;
+            font-family: 'Courier New', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            z-index: 510;
+            display: none;
+        }
+
+        .quiz-counter {
+            position: fixed;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #888;
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
+            z-index: 510;
+            display: none;
+        }
+
+        .quiz-speed-badge {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            border: 1px solid #0af;
+            border-radius: 20px;
+            padding: 6px 18px;
+            color: #0af;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            z-index: 510;
+            display: none;
+            animation: quizPulse 2s ease-in-out infinite;
+        }
+
+        .quiz-result-popup {
+            position: fixed;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.92);
+            border-radius: 16px;
+            padding: 30px 50px;
+            text-align: center;
+            z-index: 520;
+            display: none;
+            animation: quizResultSlide 0.3s ease-out;
+        }
+        .quiz-result-popup .result-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .quiz-result-popup .result-text {
+            color: #fff;
+            font-family: system-ui, sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .quiz-result-popup .result-detail {
+            color: #888;
+            font-family: system-ui, sans-serif;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+        .quiz-result-popup.correct { border: 2px solid #0f0; }
+        .quiz-result-popup.wrong { border: 2px solid #f44; }
+
+        .quiz-stats-panel, .quiz-leaderboard-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(8,12,20,0.96);
+            border: 1px solid rgba(0,170,255,0.3);
+            border-radius: 16px;
+            padding: 30px 40px;
+            max-width: 520px;
+            width: 90%;
+            max-height: 85vh;
+            overflow-y: auto;
+            z-index: 530;
+            display: none;
+            animation: quizFadeIn 0.4s ease-out;
+            font-family: system-ui, sans-serif;
+        }
+        .quiz-stats-panel h2, .quiz-leaderboard-panel h2 {
+            color: #0af;
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .quiz-stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .quiz-stats-table th {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 8px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+        .quiz-stats-table td {
+            color: #ccc;
+            font-size: 13px;
+            padding: 8px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .quiz-stats-table .correct-row td { color: #0f0; }
+        .quiz-stats-table .wrong-row td { color: #f44; }
+
+        .quiz-stats-summary {
+            text-align: center;
+            margin: 16px 0;
+            padding: 16px;
+            background: rgba(0,170,255,0.08);
+            border-radius: 10px;
+        }
+        .quiz-stats-summary .score-big {
+            font-size: 36px;
+            font-weight: 700;
+            color: #0af;
+        }
+        .quiz-stats-summary .score-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        .quiz-btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .quiz-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: system-ui, sans-serif;
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .quiz-btn:hover { transform: scale(1.05); }
+        .quiz-btn-primary { background: #0af; color: #000; }
+        .quiz-btn-secondary { background: #333; color: #ccc; }
+
+        .quiz-lb-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        .quiz-lb-table th {
+            color: #888;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 8px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+        .quiz-lb-table td {
+            color: #ccc;
+            font-size: 13px;
+            padding: 8px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .quiz-lb-table .rank-1 td { color: #ffd700; }
+        .quiz-lb-table .rank-2 td { color: #c0c0c0; }
+        .quiz-lb-table .rank-3 td { color: #cd7f32; }
+
+        @keyframes quizFadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+            to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+        @keyframes quizPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        @keyframes quizResultSlide {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
     </style>
 </head>
 <body>
@@ -435,6 +697,7 @@
             Linear distance mapping
         </div>
         <a href="#" id="about-btn" style="margin-top:10px;display:inline-block;font-size:11px;color:#888;">About</a>
+        <button id="quiz-play-btn" class="quiz-play-btn">Play GeoQuiz Race</button>
     </div>
 
     <div class="controls">
@@ -647,7 +910,54 @@
         <strong>Drag</strong> to look around •
         <strong>Click city</strong> to travel •
         <strong>WASD/Arrows</strong> to walk •
-        <strong>C</strong> for character view
+        <strong>C</strong> for character view •
+        <strong>P</strong> for GeoQuiz
+    </div>
+
+    <!-- GeoQuiz Race Overlays -->
+    <div id="quiz-overlay" class="quiz-overlay">
+        <div id="quiz-timer" class="quiz-timer">00:00.0</div>
+        <div id="quiz-counter" class="quiz-counter">1 / 10</div>
+        <div id="quiz-question-box" class="quiz-question-box">
+            <div class="question-text" id="quiz-question-text"></div>
+            <div class="question-hint">Walk toward the correct glowing sphere!</div>
+        </div>
+        <div id="quiz-speed-badge" class="quiz-speed-badge">5.0k km/h LOCKED</div>
+        <div id="quiz-result-popup" class="quiz-result-popup">
+            <div class="result-icon" id="quiz-result-icon"></div>
+            <div class="result-text" id="quiz-result-text"></div>
+            <div class="result-detail" id="quiz-result-detail"></div>
+        </div>
+    </div>
+
+    <div id="quiz-stats-overlay" class="quiz-overlay" style="background:rgba(0,0,0,0.7);">
+        <div id="quiz-stats-panel" class="quiz-stats-panel">
+            <h2>GeoQuiz Race Results</h2>
+            <div id="quiz-stats-summary" class="quiz-stats-summary"></div>
+            <table class="quiz-stats-table">
+                <thead><tr><th>#</th><th>Question</th><th>Answer</th><th>Time</th></tr></thead>
+                <tbody id="quiz-stats-body"></tbody>
+            </table>
+            <div class="quiz-btn-row">
+                <button class="quiz-btn quiz-btn-primary" id="quiz-play-again">Play Again</button>
+                <button class="quiz-btn quiz-btn-secondary" id="quiz-show-lb">Leaderboard</button>
+                <button class="quiz-btn quiz-btn-secondary" id="quiz-stats-close">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-leaderboard-overlay" class="quiz-overlay" style="background:rgba(0,0,0,0.7);">
+        <div id="quiz-leaderboard-panel" class="quiz-leaderboard-panel">
+            <h2>Leaderboard</h2>
+            <table class="quiz-lb-table">
+                <thead><tr><th>#</th><th>Score</th><th>Correct</th><th>Time</th><th>Date</th></tr></thead>
+                <tbody id="quiz-lb-body"></tbody>
+            </table>
+            <div class="quiz-btn-row">
+                <button class="quiz-btn quiz-btn-primary" id="quiz-lb-play">Play Again</button>
+                <button class="quiz-btn quiz-btn-secondary" id="quiz-lb-close">Close</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -2284,6 +2594,9 @@
             initGreatCircleGroup();
             rebuildGreatCircles();
 
+            // Rebuild quiz answer spheres if quiz is active
+            if (typeof quizAnswerGroup !== 'undefined' && quizAnswerGroup) rebuildQuizSpheres();
+
             // Hide loading indicator
             loading.style.display = 'none';
         }
@@ -3105,6 +3418,7 @@
         }
 
         document.getElementById('walk-speed-slider').addEventListener('input', e => {
+            if (quizState !== 'IDLE') return;
             updateWalkSpeed(parseInt(e.target.value));
         });
         // Initialize with default value (42 gives ~50 km/h)
@@ -3165,6 +3479,12 @@
                     }
                     console.log('Character mode:', characterMode ? 'ON' : 'OFF');
                     break;
+                case 'p':
+                    if (quizState === 'IDLE') startQuiz();
+                    break;
+                case 'escape':
+                    if (quizState !== 'IDLE') endQuiz();
+                    break;
             }
         });
 
@@ -3194,10 +3514,13 @@
         // Forward (W key) should rotate world so you walk toward what you see
         // (like a hamster ball - you walk toward what you see, so the ball rolls that way)
         function updateWalking() {
-            // Only walk at ground level (unless in character mode where we always allow walking)
-            if (!characterMode && currentAltitudeKm > GROUND_LEVEL_KM) return;
+            // Only walk at ground level (unless in character mode or quiz mode)
+            if (!characterMode && quizState === 'IDLE' && currentAltitudeKm > GROUND_LEVEL_KM) return;
             if (!keysPressed.forward && !keysPressed.backward && !keysPressed.left && !keysPressed.right) return;
             if (!worldGroup) return;
+
+            // Lock speed during quiz
+            if (quizState !== 'IDLE') walkSpeedKmh = QUIZ_SPEED_KMH;
 
             walkFrameCount++;
 
@@ -3887,6 +4210,663 @@
             document.getElementById('line-duration-display').textContent = e.target.value + 's';
         });
 
+        // === GeoQuiz Race Module ===
+        const QUIZ_SPEED_KMH = 5000;
+        const QUIZ_DETECTION_DEGREES = 8;
+        const QUIZ_NUM_QUESTIONS = 10;
+        const QUIZ_RESULT_DISPLAY_MS = 2500;
+
+        const QUIZ_QUESTION_BANK = [
+            {
+                question: "Where is the farthest point from the center of the Earth?",
+                answers: [
+                    { name: "Chimborazo, Ecuador", lat: -1.4697, lon: -78.8172, correct: true },
+                    { name: "Mount Everest, Nepal", lat: 27.9881, lon: 86.925, correct: false },
+                    { name: "Kilimanjaro, Tanzania", lat: -3.0674, lon: 37.3556, correct: false }
+                ]
+            },
+            {
+                question: "Which city is closest to the antipode of Madrid?",
+                answers: [
+                    { name: "Auckland, New Zealand", lat: -36.8485, lon: 174.7633, correct: true },
+                    { name: "Sydney, Australia", lat: -33.8688, lon: 151.2093, correct: false },
+                    { name: "Buenos Aires, Argentina", lat: -34.6037, lon: -58.3816, correct: false }
+                ]
+            },
+            {
+                question: "Where is the driest place on Earth (by annual rainfall)?",
+                answers: [
+                    { name: "Atacama Desert, Chile", lat: -24.5, lon: -69.25, correct: true },
+                    { name: "Sahara Desert, Libya", lat: 26.0, lon: 18.0, correct: false },
+                    { name: "Death Valley, USA", lat: 36.5323, lon: -116.9325, correct: false }
+                ]
+            },
+            {
+                question: "Which capital city is at the highest elevation?",
+                answers: [
+                    { name: "La Paz, Bolivia", lat: -16.4897, lon: -68.1193, correct: true },
+                    { name: "Quito, Ecuador", lat: -0.1807, lon: -78.4678, correct: false },
+                    { name: "Bogota, Colombia", lat: 4.711, lon: -74.0721, correct: false }
+                ]
+            },
+            {
+                question: "Where is the deepest point in the ocean?",
+                answers: [
+                    { name: "Mariana Trench, Pacific", lat: 11.3493, lon: 142.1996, correct: true },
+                    { name: "Puerto Rico Trench, Atlantic", lat: 19.7, lon: -67.0, correct: false },
+                    { name: "Java Trench, Indian Ocean", lat: -10.19, lon: 109.58, correct: false }
+                ]
+            },
+            {
+                question: "Where is the world's largest coral reef system?",
+                answers: [
+                    { name: "Great Barrier Reef, Australia", lat: -18.2871, lon: 147.6992, correct: true },
+                    { name: "Red Sea Coral Reef, Egypt", lat: 27.2, lon: 33.85, correct: false },
+                    { name: "Mesoamerican Reef, Belize", lat: 17.5, lon: -87.5, correct: false }
+                ]
+            },
+            {
+                question: "Where is the most remote inhabited island on Earth?",
+                answers: [
+                    { name: "Tristan da Cunha, Atlantic", lat: -37.1052, lon: -12.2777, correct: true },
+                    { name: "Easter Island, Pacific", lat: -27.1127, lon: -109.3497, correct: false },
+                    { name: "Pitcairn Island, Pacific", lat: -25.0657, lon: -130.1013, correct: false }
+                ]
+            },
+            {
+                question: "Which strait separates Africa from Europe at its narrowest?",
+                answers: [
+                    { name: "Strait of Gibraltar", lat: 35.9667, lon: -5.5, correct: true },
+                    { name: "Strait of Sicily", lat: 37.3, lon: 11.5, correct: false },
+                    { name: "Bosphorus Strait, Turkey", lat: 41.12, lon: 29.05, correct: false }
+                ]
+            },
+            {
+                question: "Where is the coldest permanently inhabited place?",
+                answers: [
+                    { name: "Oymyakon, Russia", lat: 63.4608, lon: 142.7858, correct: true },
+                    { name: "Yellowknife, Canada", lat: 62.454, lon: -114.3718, correct: false },
+                    { name: "Longyearbyen, Svalbard", lat: 78.2232, lon: 15.6267, correct: false }
+                ]
+            },
+            {
+                question: "Where is the world's highest waterfall?",
+                answers: [
+                    { name: "Angel Falls, Venezuela", lat: 5.9701, lon: -62.5362, correct: true },
+                    { name: "Victoria Falls, Zimbabwe", lat: -17.9244, lon: 25.8567, correct: false },
+                    { name: "Niagara Falls, USA/Canada", lat: 43.0799, lon: -79.0747, correct: false }
+                ]
+            },
+            {
+                question: "Where is the largest freshwater lake by surface area?",
+                answers: [
+                    { name: "Lake Superior, USA/Canada", lat: 47.7, lon: -87.5, correct: true },
+                    { name: "Lake Victoria, Africa", lat: -1.0, lon: 33.0, correct: false },
+                    { name: "Lake Baikal, Russia", lat: 53.5587, lon: 108.1650, correct: false }
+                ]
+            },
+            {
+                question: "Where is the Earth's magnetic North Pole approximately located?",
+                answers: [
+                    { name: "Canadian Arctic Archipelago", lat: 80.65, lon: -72.68, correct: true },
+                    { name: "Geographic North Pole", lat: 90.0, lon: 0.0, correct: false },
+                    { name: "Northern Greenland", lat: 83.6, lon: -33.0, correct: false }
+                ]
+            },
+            {
+                question: "Which volcano is considered the most active on Earth?",
+                answers: [
+                    { name: "Kilauea, Hawaii", lat: 19.4069, lon: -155.2834, correct: true },
+                    { name: "Mount Etna, Sicily", lat: 37.7510, lon: 14.9934, correct: false },
+                    { name: "Mount Vesuvius, Italy", lat: 40.8213, lon: 14.4260, correct: false }
+                ]
+            },
+            {
+                question: "Where is the lowest point on land (below sea level)?",
+                answers: [
+                    { name: "Dead Sea, Jordan/Israel", lat: 31.5, lon: 35.5, correct: true },
+                    { name: "Death Valley, USA", lat: 36.5323, lon: -116.9325, correct: false },
+                    { name: "Turpan Depression, China", lat: 42.95, lon: 89.18, correct: false }
+                ]
+            },
+            {
+                question: "Where is the wettest place on Earth (by annual rainfall)?",
+                answers: [
+                    { name: "Mawsynram, India", lat: 25.2974, lon: 91.5826, correct: true },
+                    { name: "Mount Waialeale, Hawaii", lat: 22.068, lon: -159.500, correct: false },
+                    { name: "Buenaventura, Colombia", lat: 3.8801, lon: -77.0198, correct: false }
+                ]
+            },
+            {
+                question: "Where is the longest river in the world?",
+                answers: [
+                    { name: "Nile River, Egypt", lat: 30.0444, lon: 31.2357, correct: true },
+                    { name: "Amazon River, Brazil", lat: -3.1190, lon: -60.0217, correct: false },
+                    { name: "Yangtze River, China", lat: 31.2304, lon: 121.4737, correct: false }
+                ]
+            },
+            {
+                question: "Where is the largest desert on Earth?",
+                answers: [
+                    { name: "Antarctic Ice Sheet", lat: -82.8628, lon: 135.0, correct: true },
+                    { name: "Sahara Desert, Africa", lat: 23.4162, lon: 25.6628, correct: false },
+                    { name: "Arabian Desert", lat: 22.0, lon: 47.0, correct: false }
+                ]
+            },
+            {
+                question: "Which tectonic plate boundary created the Himalayas?",
+                answers: [
+                    { name: "Indo-Australian / Eurasian (Nepal)", lat: 28.3949, lon: 84.1240, correct: true },
+                    { name: "Pacific / North American (Japan)", lat: 36.2048, lon: 138.2529, correct: false },
+                    { name: "Nazca / South American (Chile)", lat: -33.4489, lon: -70.6693, correct: false }
+                ]
+            },
+            {
+                question: "Where is the strongest ocean current on Earth?",
+                answers: [
+                    { name: "Antarctic Circumpolar Current", lat: -60.0, lon: 0.0, correct: true },
+                    { name: "Gulf Stream, Atlantic", lat: 30.0, lon: -79.0, correct: false },
+                    { name: "Kuroshio Current, Pacific", lat: 30.0, lon: 130.0, correct: false }
+                ]
+            },
+            {
+                question: "Where is the most lightning-struck place on Earth?",
+                answers: [
+                    { name: "Lake Maracaibo, Venezuela", lat: 9.8, lon: -71.56, correct: true },
+                    { name: "Lake Victoria, Africa", lat: -1.0, lon: 33.0, correct: false },
+                    { name: "Singapore", lat: 1.3521, lon: 103.8198, correct: false }
+                ]
+            }
+        ];
+
+        let quizState = 'IDLE';
+        let quizQuestions = [];
+        let quizCurrentIndex = 0;
+        let quizStartTime = 0;
+        let quizQuestionStartTime = 0;
+        let quizResults = [];
+        let quizAnswerGroup = null;
+        let quizPreSpeedKmh = 50;
+        let quizPreSliderValue = 42;
+        let quizPreCharacterMode = false;
+
+        // DOM elements
+        const quizOverlay = document.getElementById('quiz-overlay');
+        const quizTimer = document.getElementById('quiz-timer');
+        const quizCounter = document.getElementById('quiz-counter');
+        const quizQuestionBox = document.getElementById('quiz-question-box');
+        const quizQuestionText = document.getElementById('quiz-question-text');
+        const quizSpeedBadge = document.getElementById('quiz-speed-badge');
+        const quizResultPopup = document.getElementById('quiz-result-popup');
+        const quizResultIcon = document.getElementById('quiz-result-icon');
+        const quizResultText = document.getElementById('quiz-result-text');
+        const quizResultDetail = document.getElementById('quiz-result-detail');
+        const quizStatsOverlay = document.getElementById('quiz-stats-overlay');
+        const quizStatsPanel = document.getElementById('quiz-stats-panel');
+        const quizStatsSummary = document.getElementById('quiz-stats-summary');
+        const quizStatsBody = document.getElementById('quiz-stats-body');
+        const quizLbOverlay = document.getElementById('quiz-leaderboard-overlay');
+        const quizLbBody = document.getElementById('quiz-lb-body');
+
+        function shuffleArray(arr) {
+            const a = arr.slice();
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function startQuiz() {
+            // Save current speed settings
+            quizPreSpeedKmh = walkSpeedKmh;
+            const slider = document.getElementById('walk-speed-slider');
+            quizPreSliderValue = parseInt(slider.value);
+
+            // Lock speed
+            walkSpeedKmh = QUIZ_SPEED_KMH;
+            slider.value = 100;
+            document.getElementById('walk-speed-display').textContent = '5.0k km/h';
+
+            // Enable character mode (save previous state)
+            quizPreCharacterMode = characterMode;
+            if (!characterMode) {
+                characterMode = true;
+                document.getElementById('character-toggle').checked = true;
+                document.getElementById('character-controls').style.display = 'block';
+                if (!characterLoaded) loadCharacter();
+                if (character) character.visible = true;
+            }
+
+            // Hide UI controls
+            document.querySelector('.controls').style.display = 'none';
+            document.querySelector('.info').style.display = 'none';
+            document.querySelector('.help').style.display = 'none';
+
+            // Pick 10 random questions
+            quizQuestions = shuffleArray(QUIZ_QUESTION_BANK).slice(0, QUIZ_NUM_QUESTIONS);
+            quizCurrentIndex = 0;
+            quizResults = [];
+            quizStartTime = performance.now();
+
+            // Show overlay elements
+            quizOverlay.classList.add('active');
+            quizTimer.style.display = 'block';
+            quizCounter.style.display = 'block';
+            quizSpeedBadge.style.display = 'block';
+
+            quizState = 'SHOWING_QUESTION';
+            showQuestion(0);
+        }
+
+        function showQuestion(index) {
+            quizCurrentIndex = index;
+            const q = quizQuestions[index];
+
+            // Update UI
+            quizQuestionText.textContent = q.question;
+            quizCounter.textContent = (index + 1) + ' / ' + QUIZ_NUM_QUESTIONS;
+            quizQuestionBox.style.display = 'block';
+            quizResultPopup.style.display = 'none';
+
+            // Clear old answer spheres
+            clearAnswerSpheres();
+
+            // Create new answer spheres
+            quizAnswerGroup = new THREE.Group();
+            const colors = [
+                { main: '#ff4444', glow: '#ff8888', label: 'A' },
+                { main: '#44ff44', glow: '#88ff88', label: 'B' },
+                { main: '#4488ff', glow: '#88bbff', label: 'C' }
+            ];
+
+            q.answers.forEach((answer, i) => {
+                createAnswerSphere(answer, colors[i], i);
+            });
+
+            worldGroup.add(quizAnswerGroup);
+
+            quizQuestionStartTime = performance.now();
+            quizState = 'WALKING';
+        }
+
+        function createAnswerSphere(answer, color, index) {
+            // Create large glowing beacon marker
+            const canvas = document.createElement('canvas');
+            canvas.width = 128;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            const cx = 64, cy = 64;
+
+            // Large outer glow halo
+            const outerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 64);
+            outerGlow.addColorStop(0, color.main);
+            outerGlow.addColorStop(0.25, color.main + 'cc');
+            outerGlow.addColorStop(0.5, color.glow + '88');
+            outerGlow.addColorStop(0.75, color.glow + '33');
+            outerGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = outerGlow;
+            ctx.fillRect(0, 0, 128, 128);
+
+            // Bright white-hot center
+            const centerGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, 16);
+            centerGlow.addColorStop(0, '#ffffff');
+            centerGlow.addColorStop(0.5, '#ffffffcc');
+            centerGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = centerGlow;
+            ctx.beginPath();
+            ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+            ctx.fill();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: texture,
+                transparent: true,
+                sizeAttenuation: false,
+                depthTest: false
+            });
+
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(0.18, 0.18, 1);
+
+            // Position using geoToSphere (relative to buildNadir)
+            const pos = geoToSphere(answer.lat, answer.lon);
+            sprite.position.copy(pos);
+            sprite.userData = { answer: answer, colorIndex: index };
+
+            quizAnswerGroup.add(sprite);
+
+            // Create text label above the sphere
+            const label = createQuizLabel(answer.name, color.main);
+            label.position.copy(pos);
+            // Offset label slightly outward (toward center of view)
+            const dir = pos.clone().normalize();
+            label.position.addScaledVector(dir, -15);
+            label.userData = { isLabel: true };
+
+            quizAnswerGroup.add(label);
+        }
+
+        function createQuizLabel(text, colorHex) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const fontSize = 36;
+
+            ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+            const metrics = ctx.measureText(text);
+            canvas.width = Math.ceil(metrics.width) + 30;
+            canvas.height = fontSize + 20;
+
+            ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Background pill
+            ctx.fillStyle = 'rgba(0,0,0,0.85)';
+            // Rounded rectangle background
+            const w = canvas.width, h = canvas.height, r = 10;
+            ctx.beginPath();
+            ctx.moveTo(r, 0);
+            ctx.lineTo(w - r, 0);
+            ctx.quadraticCurveTo(w, 0, w, r);
+            ctx.lineTo(w, h - r);
+            ctx.quadraticCurveTo(w, h, w - r, h);
+            ctx.lineTo(r, h);
+            ctx.quadraticCurveTo(0, h, 0, h - r);
+            ctx.lineTo(0, r);
+            ctx.quadraticCurveTo(0, 0, r, 0);
+            ctx.closePath();
+            ctx.fill();
+
+            // Colored border
+            ctx.strokeStyle = colorHex;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Colored text
+            ctx.fillStyle = colorHex;
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+            const tex = new THREE.CanvasTexture(canvas);
+            const mat = new THREE.SpriteMaterial({
+                map: tex,
+                transparent: true,
+                sizeAttenuation: false,
+                depthTest: false
+            });
+            const sprite = new THREE.Sprite(mat);
+            const aspect = canvas.width / canvas.height;
+            sprite.scale.set(0.08 * aspect, 0.08, 1);
+            return sprite;
+        }
+
+        function clearAnswerSpheres() {
+            if (quizAnswerGroup && quizAnswerGroup.parent) {
+                quizAnswerGroup.parent.remove(quizAnswerGroup);
+                quizAnswerGroup.traverse(o => {
+                    o.material?.map?.dispose();
+                    o.material?.dispose();
+                });
+            }
+            quizAnswerGroup = null;
+        }
+
+        function checkQuizCollision() {
+            if (quizState !== 'WALKING' || !quizAnswerGroup) return;
+
+            const q = quizQuestions[quizCurrentIndex];
+            let closest = null;
+            let closestDist = Infinity;
+
+            for (let i = 0; i < q.answers.length; i++) {
+                const answer = q.answers[i];
+                const dist = angularDistance(nadir.lat, nadir.lon, answer.lat, answer.lon);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = answer;
+                }
+            }
+
+            if (closest && closestDist < QUIZ_DETECTION_DEGREES) {
+                const timeSec = (performance.now() - quizQuestionStartTime) / 1000;
+                handleQuizAnswer(closest, timeSec);
+            }
+        }
+
+        function handleQuizAnswer(answer, timeSec) {
+            quizState = 'RESULT';
+            quizResults.push({
+                question: quizQuestions[quizCurrentIndex].question,
+                chosenAnswer: answer.name,
+                correct: answer.correct,
+                timeSec: timeSec,
+                correctAnswer: quizQuestions[quizCurrentIndex].answers.find(a => a.correct).name
+            });
+
+            showResult(answer.correct, answer.name, timeSec);
+        }
+
+        function showResult(correct, answerName, timeSec) {
+            quizQuestionBox.style.display = 'none';
+            quizResultPopup.style.display = 'block';
+            quizResultPopup.className = 'quiz-result-popup ' + (correct ? 'correct' : 'wrong');
+
+            if (correct) {
+                quizResultIcon.textContent = '\u2713';
+                quizResultIcon.style.color = '#0f0';
+                quizResultText.textContent = 'Correct!';
+                quizResultDetail.textContent = answerName + ' \u2014 ' + timeSec.toFixed(1) + 's';
+            } else {
+                quizResultIcon.textContent = '\u2717';
+                quizResultIcon.style.color = '#f44';
+                quizResultText.textContent = 'Wrong!';
+                const correctName = quizQuestions[quizCurrentIndex].answers.find(a => a.correct).name;
+                quizResultDetail.textContent = 'It was ' + correctName + ' \u2014 ' + timeSec.toFixed(1) + 's';
+            }
+
+            clearAnswerSpheres();
+
+            setTimeout(() => {
+                quizResultPopup.style.display = 'none';
+                if (quizCurrentIndex + 1 < QUIZ_NUM_QUESTIONS) {
+                    quizState = 'SHOWING_QUESTION';
+                    showQuestion(quizCurrentIndex + 1);
+                } else {
+                    showStats();
+                }
+            }, QUIZ_RESULT_DISPLAY_MS);
+        }
+
+        function showStats() {
+            quizState = 'STATS';
+            quizOverlay.classList.remove('active');
+            quizTimer.style.display = 'none';
+            quizCounter.style.display = 'none';
+            quizSpeedBadge.style.display = 'none';
+            quizQuestionBox.style.display = 'none';
+
+            const correctCount = quizResults.filter(r => r.correct).length;
+            const totalTimeSec = (performance.now() - quizStartTime) / 1000;
+            const score = totalTimeSec > 0 ? Math.round(correctCount * 1000 / totalTimeSec) : 0;
+
+            // Summary
+            quizStatsSummary.innerHTML =
+                '<div class="score-big">' + score + '</div>' +
+                '<div class="score-label">Score (correct \u00d7 1000 \u00f7 total time)</div>' +
+                '<div style="margin-top:10px;color:#ccc;font-size:14px;">' +
+                correctCount + '/' + QUIZ_NUM_QUESTIONS + ' correct \u00b7 ' + totalTimeSec.toFixed(1) + 's total</div>';
+
+            // Table
+            quizStatsBody.innerHTML = '';
+            quizResults.forEach((r, i) => {
+                const tr = document.createElement('tr');
+                tr.className = r.correct ? 'correct-row' : 'wrong-row';
+                tr.innerHTML =
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td style="font-size:11px;">' + r.question.substring(0, 50) + '...</td>' +
+                    '<td>' + (r.correct ? '\u2713' : '\u2717') + ' ' + r.chosenAnswer + '</td>' +
+                    '<td>' + r.timeSec.toFixed(1) + 's</td>';
+                quizStatsBody.appendChild(tr);
+            });
+
+            // Save to leaderboard
+            saveLeaderboardEntry(score, correctCount, totalTimeSec);
+
+            quizStatsOverlay.classList.add('active');
+            quizStatsOverlay.style.pointerEvents = 'auto';
+            quizStatsPanel.style.display = 'block';
+        }
+
+        function endQuiz() {
+            quizState = 'IDLE';
+            clearAnswerSpheres();
+
+            // Restore speed
+            walkSpeedKmh = quizPreSpeedKmh;
+            const slider = document.getElementById('walk-speed-slider');
+            slider.value = quizPreSliderValue;
+            updateWalkSpeed(quizPreSliderValue);
+
+            // Restore character mode
+            if (!quizPreCharacterMode && characterMode) {
+                characterMode = false;
+                document.getElementById('character-toggle').checked = false;
+                document.getElementById('character-controls').style.display = 'none';
+                if (character) character.visible = false;
+            }
+
+            // Restore UI
+            document.querySelector('.controls').style.display = '';
+            document.querySelector('.info').style.display = '';
+            document.querySelector('.help').style.display = '';
+
+            // Hide all quiz overlays
+            quizOverlay.classList.remove('active');
+            quizStatsOverlay.classList.remove('active');
+            quizStatsOverlay.style.pointerEvents = '';
+            quizLbOverlay.classList.remove('active');
+            quizLbOverlay.style.pointerEvents = '';
+            quizTimer.style.display = 'none';
+            quizCounter.style.display = 'none';
+            quizSpeedBadge.style.display = 'none';
+            quizQuestionBox.style.display = 'none';
+            quizResultPopup.style.display = 'none';
+            quizStatsPanel.style.display = 'none';
+            document.getElementById('quiz-leaderboard-panel').style.display = 'none';
+        }
+
+        function updateQuizTimer() {
+            if (quizState !== 'WALKING') return;
+            const elapsed = (performance.now() - quizQuestionStartTime) / 1000;
+            const min = Math.floor(elapsed / 60);
+            const sec = Math.floor(elapsed % 60);
+            const tenths = Math.floor((elapsed * 10) % 10);
+            quizTimer.textContent =
+                String(min).padStart(2, '0') + ':' +
+                String(sec).padStart(2, '0') + '.' + tenths;
+        }
+
+        function updateQuizPulse() {
+            if (!quizAnswerGroup) return;
+            const time = performance.now();
+            quizAnswerGroup.children.forEach(child => {
+                if (child.userData.isLabel) return;
+                const pulse = 0.85 + 0.3 * Math.sin(time / 300 + (child.userData.colorIndex || 0) * 2);
+                child.scale.set(0.18 * pulse, 0.18 * pulse, 1);
+                child.material.opacity = 0.8 + 0.2 * Math.sin(time / 400 + (child.userData.colorIndex || 0));
+            });
+        }
+
+        function rebuildQuizSpheres() {
+            if (quizState === 'IDLE' || !quizQuestions[quizCurrentIndex]) return;
+            // After rebuildAll, worldGroup is new — re-create answer spheres
+            clearAnswerSpheres();
+            quizAnswerGroup = new THREE.Group();
+            const colors = [
+                { main: '#ff4444', glow: '#ff8888', label: 'A' },
+                { main: '#44ff44', glow: '#88ff88', label: 'B' },
+                { main: '#4488ff', glow: '#88bbff', label: 'C' }
+            ];
+            const q = quizQuestions[quizCurrentIndex];
+            q.answers.forEach((answer, i) => {
+                createAnswerSphere(answer, colors[i], i);
+            });
+            worldGroup.add(quizAnswerGroup);
+        }
+
+        // Leaderboard (localStorage)
+        const QUIZ_LB_KEY = 'innerearth_geoquiz_leaderboard';
+
+        function saveLeaderboardEntry(score, correctCount, totalTimeSec) {
+            let lb = [];
+            try { lb = JSON.parse(localStorage.getItem(QUIZ_LB_KEY)) || []; } catch(e) {}
+            lb.push({
+                score: score,
+                correct: correctCount,
+                total: QUIZ_NUM_QUESTIONS,
+                timeSec: totalTimeSec,
+                date: new Date().toISOString().split('T')[0]
+            });
+            lb.sort((a, b) => b.score - a.score);
+            lb = lb.slice(0, 10);
+            localStorage.setItem(QUIZ_LB_KEY, JSON.stringify(lb));
+        }
+
+        function showLeaderboard() {
+            quizState = 'LEADERBOARD';
+            quizStatsOverlay.classList.remove('active');
+            quizStatsOverlay.style.pointerEvents = '';
+            quizStatsPanel.style.display = 'none';
+
+            let lb = [];
+            try { lb = JSON.parse(localStorage.getItem(QUIZ_LB_KEY)) || []; } catch(e) {}
+
+            quizLbBody.innerHTML = '';
+            if (lb.length === 0) {
+                quizLbBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#666;">No entries yet</td></tr>';
+            } else {
+                lb.forEach((entry, i) => {
+                    const tr = document.createElement('tr');
+                    if (i === 0) tr.className = 'rank-1';
+                    else if (i === 1) tr.className = 'rank-2';
+                    else if (i === 2) tr.className = 'rank-3';
+                    tr.innerHTML =
+                        '<td>' + (i + 1) + '</td>' +
+                        '<td>' + entry.score + '</td>' +
+                        '<td>' + entry.correct + '/' + entry.total + '</td>' +
+                        '<td>' + entry.timeSec.toFixed(1) + 's</td>' +
+                        '<td>' + entry.date + '</td>';
+                    quizLbBody.appendChild(tr);
+                });
+            }
+
+            quizLbOverlay.classList.add('active');
+            quizLbOverlay.style.pointerEvents = 'auto';
+            document.getElementById('quiz-leaderboard-panel').style.display = 'block';
+        }
+
+        // Quiz button handlers
+        document.getElementById('quiz-play-btn').addEventListener('click', () => {
+            if (quizState === 'IDLE') startQuiz();
+        });
+        document.getElementById('quiz-play-again').addEventListener('click', () => {
+            endQuiz();
+            startQuiz();
+        });
+        document.getElementById('quiz-show-lb').addEventListener('click', () => {
+            showLeaderboard();
+        });
+        document.getElementById('quiz-stats-close').addEventListener('click', () => {
+            endQuiz();
+        });
+        document.getElementById('quiz-lb-play').addEventListener('click', () => {
+            endQuiz();
+            startQuiz();
+        });
+        document.getElementById('quiz-lb-close').addEventListener('click', () => {
+            endQuiz();
+        });
+
         // === Animation Loop ===
         let lastDayNightUpdate = 0;
         let lastFrameTime = performance.now();
@@ -3917,6 +4897,13 @@
             if (characterMode && character) {
                 updateCharacterPosition();
                 updateCameraForCharacter();
+            }
+
+            // GeoQuiz Race updates
+            if (quizState === 'WALKING') {
+                checkQuizCollision();
+                updateQuizTimer();
+                updateQuizPulse();
             }
 
             // Layer animation system (triggered on toggle)
